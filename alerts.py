@@ -204,6 +204,127 @@ def send_alerts(at_risk_buckets):
     send_slack_alert(at_risk_buckets)
 
 
+def send_drift_alerts(drifts):
+    """Send alerts for configuration drift"""
+    if not drifts:
+        print("✅ No drift detected - no alerts needed")
+        return
+    
+    if not AWS_SES_CONFIG["enabled"]:
+        print("📧 AWS SES alerts disabled")
+        return
+    
+    try:
+        print(f"\n🔔 Sending drift alerts...\n")
+        print("📧 Connecting to AWS SES...")
+        
+        ses = boto3.client('ses', region_name=AWS_SES_CONFIG["region"])
+        
+        # Build drift details HTML
+        drift_rows = ""
+        for drift in drifts:
+            drift_type = drift.get("type", "UNKNOWN")
+            bucket = drift.get("bucket", "Unknown")
+            message = drift.get("message", "")
+            details = drift.get("details", [])
+            
+            details_html = "<br>".join(details) if details else message
+            
+            drift_rows += f"""
+            <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">{bucket}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{drift_type}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{details_html}</td>
+            </tr>
+            """
+        
+        html_body = f"""
+        <html>
+        <body>
+        <h2>🛡️ DriftShield - Configuration Drift Detected</h2>
+        <p><strong>Time:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p><strong>Issue:</strong> S3 bucket configurations have drifted from baseline</p>
+        
+        <h3>⚠️ Drift Summary ({len(drifts)} change(s)):</h3>
+        <table style="border-collapse: collapse; width: 100%;">
+            <tr style="background-color: #f2f2f2;">
+                <th style="padding: 8px; border: 1px solid #ddd;">Bucket</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Change Type</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Details</th>
+            </tr>
+            {drift_rows}
+        </table>
+        
+        <h3>Recommended Actions:</h3>
+        <ol>
+        <li>Review the configuration changes</li>
+        <li>If changes are intentional, update baseline: <code>python main.py --baseline</code></li>
+        <li>If unauthorized, revert the changes immediately</li>
+        </ol>
+        
+        <p>---<br>DriftShield - Cloud Security Monitoring</p>
+        </body>
+        </html>
+        """
+        
+        # Build text version
+        drift_text = "\n".join([
+            f"  - {d['bucket']}: {d.get('message', d.get('type', 'Unknown'))}"
+            for d in drifts
+        ])
+        
+        text_body = f"""
+DriftShield - Configuration Drift Detected
+===========================================
+
+Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Issue: S3 bucket configurations have drifted from baseline
+
+Drifts Detected ({len(drifts)}):
+{drift_text}
+
+Recommended Actions:
+1. Review the configuration changes
+2. If intentional, update baseline: python main.py --baseline
+3. If unauthorized, revert changes immediately
+
+---
+DriftShield - Cloud Security Monitoring
+        """
+        
+        print("📧 Sending drift alert email...")
+        
+        response = ses.send_email(
+            Source=AWS_SES_CONFIG["sender_email"],
+            Destination={
+                'ToAddresses': [AWS_SES_CONFIG["recipient_email"]]
+            },
+            Message={
+                'Subject': {
+                    'Data': f"⚠️ DriftShield: {len(drifts)} Configuration Drift(s) Detected",
+                    'Charset': 'UTF-8'
+                },
+                'Body': {
+                    'Text': {
+                        'Data': text_body,
+                        'Charset': 'UTF-8'
+                    },
+                    'Html': {
+                        'Data': html_body,
+                        'Charset': 'UTF-8'
+                    }
+                }
+            }
+        )
+        
+        print(f"📧 Drift alert sent! Message ID: {response['MessageId']}")
+        return True
+        
+    except Exception as e:
+        print(f"📧 Drift alert failed: {e}")
+        return False
+
+
 if __name__ == "__main__":
     # Test alerts
     test_buckets = ["test-bucket-1", "test-bucket-2"]
