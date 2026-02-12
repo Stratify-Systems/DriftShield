@@ -62,6 +62,6 @@ if __name__ == "__main__":
     print(f"At-risk buckets: {len(results['at_risk'])}")
     
     if results['at_risk']:
-        print("\n🚨 ACTION REQUIRED: Review these buckets:")
+        print("\nACTION REQUIRED: Review these buckets:")
         for bucket in results['at_risk']:
             print(f"   - {bucket}")
