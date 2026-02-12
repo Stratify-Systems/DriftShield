@@ -1,3 +1,9 @@
+"""
+Alert Module
+
+Handles sending security alerts via AWS SES and Slack.
+"""
+
 import json
 from datetime import datetime
 
@@ -10,21 +16,28 @@ try:
 except ImportError:
     HAS_URLLIB = False
 
-from config import AWS_SES_CONFIG, SLACK_CONFIG
+from .config import AWS_SES_CONFIG, SLACK_CONFIG
 
 
 def send_ses_alert(at_risk_buckets):
-    """Send email alert using AWS SES"""
+    """
+    Send email alert using AWS SES.
+    
+    Args:
+        at_risk_buckets: List of bucket names that are at risk
+        
+    Returns:
+        bool: True if email sent successfully
+    """
     if not AWS_SES_CONFIG["enabled"]:
-        print("📧 AWS SES alerts disabled (enable in config.py)")
+        print("[EMAIL] AWS SES alerts disabled (enable in config.py)")
         return False
     
     try:
-        print("📧 Connecting to AWS SES...")
+        print("[EMAIL] Connecting to AWS SES...")
         
         ses = boto3.client('ses', region_name=AWS_SES_CONFIG["region"])
         
-        # Create email body
         bucket_list_html = "".join(f"<li>{bucket}</li>" for bucket in at_risk_buckets)
         bucket_list_text = "\n".join(f"  - {bucket}" for bucket in at_risk_buckets)
         
@@ -71,7 +84,7 @@ Recommended Actions:
 DriftShield - Cloud Security Monitoring
         """
         
-        print("📧 Sending email via AWS SES...")
+        print("[EMAIL] Sending email via AWS SES...")
         
         response = ses.send_email(
             Source=AWS_SES_CONFIG["sender_email"],
@@ -80,23 +93,17 @@ DriftShield - Cloud Security Monitoring
             },
             Message={
                 'Subject': {
-                    'Data': f"🚨 DriftShield Alert: {len(at_risk_buckets)} At-Risk S3 Bucket(s)",
+                    'Data': f"[ALERT] DriftShield: {len(at_risk_buckets)} At-Risk S3 Bucket(s)",
                     'Charset': 'UTF-8'
                 },
                 'Body': {
-                    'Text': {
-                        'Data': text_body,
-                        'Charset': 'UTF-8'
-                    },
-                    'Html': {
-                        'Data': html_body,
-                        'Charset': 'UTF-8'
-                    }
+                    'Text': {'Data': text_body, 'Charset': 'UTF-8'},
+                    'Html': {'Data': html_body, 'Charset': 'UTF-8'}
                 }
             }
         )
         
-        print(f"📧 Email sent successfully! Message ID: {response['MessageId']}")
+        print(f"[EMAIL] Sent successfully. Message ID: {response['MessageId']}")
         return True
         
     except ClientError as e:
@@ -104,33 +111,40 @@ DriftShield - Cloud Security Monitoring
         error_msg = e.response['Error']['Message']
         
         if error_code == 'MessageRejected':
-            print(f"📧 Email rejected: {error_msg}")
-            print("   → Make sure both sender and recipient emails are verified in SES")
+            print(f"[EMAIL] Rejected: {error_msg}")
+            print("        Ensure both sender and recipient emails are verified in SES")
         elif error_code == 'AccessDenied':
-            print(f"📧 Access denied: {error_msg}")
-            print("   → Add SES permissions to your IAM user")
+            print(f"[EMAIL] Access denied: {error_msg}")
+            print("        Add SES permissions to your IAM user")
         else:
-            print(f"📧 AWS SES error ({error_code}): {error_msg}")
+            print(f"[EMAIL] AWS SES error ({error_code}): {error_msg}")
         return False
         
     except Exception as e:
-        print(f"📧 Email alert failed: {e}")
+        print(f"[EMAIL] Failed: {e}")
         return False
 
 
 def send_slack_alert(at_risk_buckets):
-    """Send Slack alert for at-risk buckets"""
+    """
+    Send Slack alert for at-risk buckets.
+    
+    Args:
+        at_risk_buckets: List of bucket names that are at risk
+        
+    Returns:
+        bool: True if alert sent successfully
+    """
     if not SLACK_CONFIG["enabled"]:
-        print("💬 Slack alerts disabled (enable in config.py)")
+        print("[SLACK] Alerts disabled (enable in config.py)")
         return False
     
     if not HAS_URLLIB:
-        print("💬 Slack alert failed: urllib not available")
+        print("[SLACK] Failed: urllib not available")
         return False
     
     try:
-        # Create Slack message
-        bucket_list = "\n".join(f"• {bucket}" for bucket in at_risk_buckets)
+        bucket_list = "\n".join(f"- {bucket}" for bucket in at_risk_buckets)
         
         message = {
             "blocks": [
@@ -138,29 +152,20 @@ def send_slack_alert(at_risk_buckets):
                     "type": "header",
                     "text": {
                         "type": "plain_text",
-                        "text": "DriftShield Security Alert!",
-                        "emoji": True
+                        "text": "DriftShield Security Alert",
+                        "emoji": False
                     }
                 },
                 {
                     "type": "section",
                     "fields": [
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*At-Risk Buckets:*\n{len(at_risk_buckets)}"
-                        },
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*Time:*\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                        }
+                        {"type": "mrkdwn", "text": f"*At-Risk Buckets:*\n{len(at_risk_buckets)}"},
+                        {"type": "mrkdwn", "text": f"*Time:*\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"}
                     ]
                 },
                 {
                     "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*⚠️ Buckets with public access risk:*\n{bucket_list}"
-                    }
+                    "text": {"type": "mrkdwn", "text": f"*Buckets with public access risk:*\n{bucket_list}"}
                 },
                 {
                     "type": "section",
@@ -172,7 +177,6 @@ def send_slack_alert(at_risk_buckets):
             ]
         }
         
-        # Send to Slack
         data = json.dumps(message).encode("utf-8")
         req = urllib.request.Request(
             SLACK_CONFIG["webhook_url"],
@@ -181,42 +185,52 @@ def send_slack_alert(at_risk_buckets):
         )
         urllib.request.urlopen(req)
         
-        print("💬 Slack alert sent successfully!")
+        print("[SLACK] Alert sent successfully")
         return True
         
     except Exception as e:
-        print(f"💬 Slack alert failed: {e}")
+        print(f"[SLACK] Failed: {e}")
         return False
 
 
 def send_alerts(at_risk_buckets):
-    """Send all configured alerts"""
+    """
+    Send all configured alerts.
+    
+    Args:
+        at_risk_buckets: List of bucket names that are at risk
+    """
     if not at_risk_buckets:
-        print("✅ No at-risk buckets - no alerts needed")
+        print("[INFO] No at-risk buckets - no alerts needed")
         return
     
-    print(f"\n🔔 Sending alerts for {len(at_risk_buckets)} at-risk bucket(s)...\n")
+    print(f"\n[ALERT] Sending alerts for {len(at_risk_buckets)} at-risk bucket(s)...\n")
     
-    # Try AWS SES first (recommended)
     send_ses_alert(at_risk_buckets)
-    
-    # Also try Slack if enabled
     send_slack_alert(at_risk_buckets)
 
 
 def send_drift_alerts(drifts):
-    """Send alerts for configuration drift"""
+    """
+    Send alerts for configuration drift.
+    
+    Args:
+        drifts: List of drift objects
+        
+    Returns:
+        bool: True if alert sent successfully
+    """
     if not drifts:
-        print("✅ No drift detected - no alerts needed")
+        print("[INFO] No drift detected - no alerts needed")
         return
     
     if not AWS_SES_CONFIG["enabled"]:
-        print("📧 AWS SES alerts disabled")
+        print("[EMAIL] AWS SES alerts disabled")
         return
     
     try:
-        print(f"\n🔔 Sending drift alerts...\n")
-        print("📧 Connecting to AWS SES...")
+        print(f"\n[ALERT] Sending drift alerts...\n")
+        print("[EMAIL] Connecting to AWS SES...")
         
         ses = boto3.client('ses', region_name=AWS_SES_CONFIG["region"])
         
@@ -241,11 +255,11 @@ def send_drift_alerts(drifts):
         html_body = f"""
         <html>
         <body>
-        <h2>🛡️ DriftShield - Configuration Drift Detected</h2>
+        <h2>DriftShield - Configuration Drift Detected</h2>
         <p><strong>Time:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
         <p><strong>Issue:</strong> S3 bucket configurations have drifted from baseline</p>
         
-        <h3>⚠️ Drift Summary ({len(drifts)} change(s)):</h3>
+        <h3>Drift Summary ({len(drifts)} change(s)):</h3>
         <table style="border-collapse: collapse; width: 100%;">
             <tr style="background-color: #f2f2f2;">
                 <th style="padding: 8px; border: 1px solid #ddd;">Bucket</th>
@@ -267,7 +281,6 @@ def send_drift_alerts(drifts):
         </html>
         """
         
-        # Build text version
         drift_text = "\n".join([
             f"  - {d['bucket']}: {d.get('message', d.get('type', 'Unknown'))}"
             for d in drifts
@@ -292,7 +305,7 @@ Recommended Actions:
 DriftShield - Cloud Security Monitoring
         """
         
-        print("📧 Sending drift alert email...")
+        print("[EMAIL] Sending drift alert...")
         
         response = ses.send_email(
             Source=AWS_SES_CONFIG["sender_email"],
@@ -301,31 +314,19 @@ DriftShield - Cloud Security Monitoring
             },
             Message={
                 'Subject': {
-                    'Data': f"⚠️ DriftShield: {len(drifts)} Configuration Drift(s) Detected",
+                    'Data': f"[DRIFT] DriftShield: {len(drifts)} Configuration Change(s) Detected",
                     'Charset': 'UTF-8'
                 },
                 'Body': {
-                    'Text': {
-                        'Data': text_body,
-                        'Charset': 'UTF-8'
-                    },
-                    'Html': {
-                        'Data': html_body,
-                        'Charset': 'UTF-8'
-                    }
+                    'Text': {'Data': text_body, 'Charset': 'UTF-8'},
+                    'Html': {'Data': html_body, 'Charset': 'UTF-8'}
                 }
             }
         )
         
-        print(f"📧 Drift alert sent! Message ID: {response['MessageId']}")
+        print(f"[EMAIL] Drift alert sent. Message ID: {response['MessageId']}")
         return True
         
     except Exception as e:
-        print(f"📧 Drift alert failed: {e}")
+        print(f"[EMAIL] Drift alert failed: {e}")
         return False
-
-
-if __name__ == "__main__":
-    # Test alerts
-    test_buckets = ["test-bucket-1", "test-bucket-2"]
-    send_alerts(test_buckets)
