@@ -8,6 +8,7 @@ A cloud security tool that detects S3 misconfigurations by monitoring bucket set
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
 - **Slack Integration**: Optional Slack webhook alerts
+- **Scheduled Scanning**: Automated hourly scans via cron
 
 ## Project Structure
 
@@ -16,12 +17,16 @@ DriftShield/
 ├── main.py              # Entry point and CLI
 ├── requirements.txt     # Python dependencies
 ├── baseline.json        # Saved baseline configuration
-└── src/
-    ├── __init__.py      # Package initialization
-    ├── config.py        # Configuration settings
-    ├── scanner.py       # S3 security scanning
-    ├── baseline.py      # Baseline management
-    └── alerts.py        # Email and Slack alerts
+├── src/
+│   ├── __init__.py      # Package initialization
+│   ├── config.py        # Configuration settings
+│   ├── scanner.py       # S3 security scanning
+│   ├── baseline.py      # Baseline management
+│   └── alerts.py        # Email and Slack alerts
+├── scripts/
+│   └── scheduled_scan.sh  # Cron job script
+└── logs/
+    └── cron.log         # Scheduled scan logs
 ```
 
 ## Installation
@@ -70,6 +75,44 @@ python main.py --drift
 ### Show Help
 ```bash
 python main.py --help
+```
+
+## Scheduled Scanning (Cron)
+
+Set up automated scans to run every hour:
+
+### 1. Test the script manually
+```bash
+./scripts/scheduled_scan.sh both
+```
+
+### 2. Add to crontab
+```bash
+crontab -e
+```
+
+### 3. Add one of these lines:
+
+Replace `/path/to/DriftShield` with your actual installation path.
+
+**Run both scan and drift detection every hour:**
+```
+0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh both >> /path/to/DriftShield/logs/cron.log 2>&1
+```
+
+**Run security scan every hour:**
+```
+0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh scan >> /path/to/DriftShield/logs/cron.log 2>&1
+```
+
+**Run drift detection every 30 minutes:**
+```
+*/30 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh drift >> /path/to/DriftShield/logs/cron.log 2>&1
+```
+
+### 4. View logs
+```bash
+tail -f logs/cron.log
 ```
 
 ## AWS IAM Permissions Required
