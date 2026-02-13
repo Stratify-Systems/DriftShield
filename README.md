@@ -1,10 +1,11 @@
 # DriftShield
 
-A cloud security tool that detects S3 misconfigurations by monitoring bucket settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before data leaks occur.
+A cloud security tool that detects S3 and EC2 misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
 
 ## Features
 
-- **Security Scanning**: Detects S3 buckets with public access risks
+- **S3 Security Scanning**: Detects S3 buckets with public access risks
+- **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
@@ -22,6 +23,7 @@ DriftShield/
 │   ├── __init__.py      # Package initialization
 │   ├── config.py        # Configuration settings
 │   ├── scanner.py       # S3 security scanning
+│   ├── ec2_scanner.py   # EC2 security group scanning
 │   ├── baseline.py      # Baseline management
 │   └── alerts.py        # Email and Slack alerts
 ├── scripts/
@@ -58,9 +60,19 @@ DriftShield/
 
 ## Usage
 
-### Run Security Scan
+### Run S3 Security Scan
 ```bash
 python main.py
+```
+
+### Run EC2 Security Group Scan
+```bash
+python main.py --ec2
+```
+
+### Run All Scans (S3 + EC2)
+```bash
+python main.py --all
 ```
 
 ### Create Baseline
@@ -82,6 +94,25 @@ python main.py --fix
 ```bash
 python main.py --help
 ```
+
+## EC2 Security Checks
+
+The EC2 scanner detects these risky configurations when open to `0.0.0.0/0`:
+
+| Port | Service | Severity |
+|------|---------|----------|
+| 22 | SSH | CRITICAL |
+| 3389 | RDP | CRITICAL |
+| 23 | Telnet | HIGH |
+| 21 | FTP | HIGH |
+| 3306 | MySQL | HIGH |
+| 5432 | PostgreSQL | HIGH |
+| 1433 | MSSQL | HIGH |
+| 27017 | MongoDB | HIGH |
+| 6379 | Redis | HIGH |
+| 9200 | Elasticsearch | HIGH |
+| All ports (0-65535) | Any | CRITICAL |
+| All traffic | Any | CRITICAL |
 
 ## Scheduled Scanning (Cron)
 
@@ -141,6 +172,14 @@ tail -f logs/cron.log
                 "s3:PutBucketVersioning",
                 "s3:PutBucketEncryption",
                 "s3:DeleteBucketEncryption"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSecurityGroupRules"
             ],
             "Resource": "*"
         },

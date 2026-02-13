@@ -12,6 +12,7 @@ from datetime import datetime
 from src.scanner import scan_all_buckets
 from src.baseline import create_baseline, compare_with_baseline, remediate_drift
 from src.alerts import send_alerts, send_drift_alerts
+from src.ec2_scanner import scan_security_groups
 
 VERSION = "1.0.0"
 
@@ -40,27 +41,33 @@ def print_help():
     print("+" + "-" * 58 + "+")
     print()
     print("DESCRIPTION:")
-    print("  A cloud security tool that detects S3 misconfigurations")
+    print("  A cloud security tool that detects S3 and EC2 misconfigurations")
     print("  and monitors configuration drift against a secure baseline.")
     print()
     print("USAGE:")
     print("  driftshield [command]")
     print()
     print("COMMANDS:")
-    print("  (none)        Run security scan (default)")
+    print("  (none)        Run S3 security scan (default)")
+    print("  --ec2         Run EC2 security group scan")
+    print("  --all         Run both S3 and EC2 scans")
     print("  --baseline    Create baseline from current configurations")
     print("  --drift       Check for configuration drift")
     print("  --fix         Fix drifted configs back to baseline")
     print("  --help        Show this help message")
     print()
     print("SHORTCUTS:")
+    print("  -e            Same as --ec2")
+    print("  -a            Same as --all")
     print("  -b            Same as --baseline")
     print("  -d            Same as --drift")
     print("  -f            Same as --fix")
     print("  -h            Same as --help")
     print()
     print("EXAMPLES:")
-    print("  python main.py                 # Run security scan")
+    print("  python main.py                 # Run S3 security scan")
+    print("  python main.py --ec2           # Run EC2 security group scan")
+    print("  python main.py --all           # Run all scans")
     print("  python main.py --baseline      # Save current config as baseline")
     print("  python main.py --drift         # Detect config changes")
     print("  python main.py --fix           # Fix drifted configs to baseline")
@@ -186,6 +193,80 @@ def run_fix_drifts():
         print("    - s3:DeleteBucketEncryption")
 
 
+def run_ec2_scan():
+    """Run EC2 security group scan."""
+    print_banner("EC2 SECURITY SCAN")
+    
+    print(f"Scan started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    results = scan_security_groups()
+    
+    print()
+    print("+" + "-" * 58 + "+")
+    print("|  EC2 SCAN RESULTS".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    print(f"|  Secure groups:    {len(results['secure'])}".ljust(59) + "|")
+    print(f"|  At-risk groups:   {len(results['at_risk'])}".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    
+    if results['at_risk']:
+        print()
+        print("[!] ACTION REQUIRED - Review these security groups:")
+        for sg_id in results['at_risk']:
+            details = results['details'].get(sg_id, {})
+            config = details.get('config', {})
+            print(f"    - {config.get('group_name', sg_id)} ({sg_id})")
+    else:
+        print()
+        print("[+] All security groups are secure. No action required.")
+
+
+def run_all_scans():
+    """Run both S3 and EC2 security scans."""
+    print_banner("FULL SECURITY SCAN")
+    
+    print(f"Scan started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    # S3 Scan
+    print("=" * 60)
+    print("  S3 BUCKET SCAN")
+    print("=" * 60)
+    print()
+    
+    s3_results = scan_all_buckets()
+    
+    print()
+    
+    # EC2 Scan
+    print("=" * 60)
+    print("  EC2 SECURITY GROUP SCAN")
+    print("=" * 60)
+    print()
+    
+    ec2_results = scan_security_groups()
+    
+    # Summary
+    print()
+    print("+" + "-" * 58 + "+")
+    print("|  FULL SCAN RESULTS".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    print("|  S3 Buckets:".ljust(59) + "|")
+    print(f"|    Secure: {len(s3_results['secure'])}, At-risk: {len(s3_results['at_risk'])}".ljust(59) + "|")
+    print("|  EC2 Security Groups:".ljust(59) + "|")
+    print(f"|    Secure: {len(ec2_results['secure'])}, At-risk: {len(ec2_results['at_risk'])}".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    
+    total_risks = len(s3_results['at_risk']) + len(ec2_results['at_risk'])
+    if total_risks > 0:
+        print()
+        print(f"[!] Total issues found: {total_risks}")
+    else:
+        print()
+        print("[+] All resources are secure!")
+
+
 def main():
     """Main entry point."""
     if len(sys.argv) > 1:
@@ -193,6 +274,14 @@ def main():
         
         if arg in ("--help", "-h", "help"):
             print_help()
+            return 0
+        
+        elif arg in ("--ec2", "-e", "ec2"):
+            run_ec2_scan()
+            return 0
+        
+        elif arg in ("--all", "-a", "all"):
+            run_all_scans()
             return 0
         
         elif arg in ("--baseline", "-b", "baseline"):
