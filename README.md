@@ -6,6 +6,7 @@ A cloud security tool that detects S3 misconfigurations by monitoring bucket set
 
 - **Security Scanning**: Detects S3 buckets with public access risks
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
+- **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
 - **Slack Integration**: Optional Slack webhook alerts
 - **Scheduled Scanning**: Automated hourly scans via cron
@@ -72,6 +73,11 @@ python main.py --baseline
 python main.py --drift
 ```
 
+### Fix Drifted Configurations
+```bash
+python main.py --fix
+```
+
 ### Show Help
 ```bash
 python main.py --help
@@ -130,7 +136,11 @@ tail -f logs/cron.log
                 "s3:GetBucketPolicy",
                 "s3:GetBucketPolicyStatus",
                 "s3:GetBucketVersioning",
-                "s3:GetEncryptionConfiguration"
+                "s3:GetEncryptionConfiguration",
+                "s3:PutBucketPublicAccessBlock",
+                "s3:PutBucketVersioning",
+                "s3:PutBucketEncryption",
+                "s3:DeleteBucketEncryption"
             ],
             "Resource": "*"
         },
