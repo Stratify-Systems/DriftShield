@@ -1,7 +1,7 @@
 """
 Baseline Management Module
 
-Handles creation, storage, and comparison of S3 bucket configuration baselines.
+Handles creation, storage, and comparison of S3 and EC2 configuration baselines.
 """
 
 import json
@@ -11,7 +11,11 @@ from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 
+from . import config as cfg
 from .config import BASELINE_FILE
+
+# EC2 baseline file
+EC2_BASELINE_FILE = "ec2_baseline.json"
 
 
 def get_bucket_config(bucket_name):
@@ -346,3 +350,211 @@ def remediate_drift(drifts):
             })
     
     return results
+
+
+# =============================================================================
+# EC2 BASELINE FUNCTIONS
+# =============================================================================
+
+def get_ec2_client():
+    """Get EC2 client with configured region."""
+    region = cfg.CURRENT_REGION or cfg.AWS_REGION
+    return boto3.client('ec2', region_name=region)
+
+
+def load_ec2_baseline():
+    """Load EC2 baseline from file."""
+    if not os.path.exists(EC2_BASELINE_FILE):
+        return {}
+    
+    with open(EC2_BASELINE_FILE, 'r') as f:
+        return json.load(f)
+
+
+def save_ec2_baseline(baseline):
+    """Save EC2 baseline to file."""
+    with open(EC2_BASELINE_FILE, 'w') as f:
+        json.dump(baseline, f, indent=2)
+
+
+def get_security_group_full_config(sg):
+    """
+    Get full configuration for a security group.
+    
+    Args:
+        sg: Security group dict from boto3
+        
+    Returns:
+        dict: Security group configuration
+    """
+    inbound_rules = []
+    for rule in sg.get('IpPermissions', []):
+        cidrs = [ip['CidrIp'] for ip in rule.get('IpRanges', [])]
+        cidrs += [ip['CidrIpv6'] for ip in rule.get('Ipv6Ranges', [])]
+        
+        inbound_rules.append({
+            "protocol": rule.get('IpProtocol', '-1'),
+            "from_port": rule.get('FromPort', 0),
+            "to_port": rule.get('ToPort', 65535),
+            "sources": cidrs
+        })
+    
+    return {
+        "group_id": sg['GroupId'],
+        "group_name": sg.get('GroupName', 'Unknown'),
+        "description": sg.get('Description', ''),
+        "vpc_id": sg.get('VpcId', 'EC2-Classic'),
+        "inbound_rules": inbound_rules
+    }
+
+
+def create_ec2_baseline():
+    """
+    Create baseline from current security group configurations.
+    
+    Returns:
+        dict: The created baseline
+    """
+    ec2 = get_ec2_client()
+    region = cfg.CURRENT_REGION or cfg.AWS_REGION
+    
+    try:
+        response = ec2.describe_security_groups()
+        security_groups = response.get('SecurityGroups', [])
+    except ClientError as e:
+        print(f"[ERROR] Failed to get security groups: {e}")
+        return {}
+    
+    baseline = {
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+        "region": region,
+        "security_groups": {}
+    }
+    
+    print(f"Creating EC2 baseline for region: {region}\n")
+    
+    for sg in security_groups:
+        sg_id = sg['GroupId']
+        sg_name = sg.get('GroupName', 'Unknown')
+        print(f"  Capturing: {sg_name} ({sg_id})")
+        config = get_security_group_full_config(sg)
+        baseline["security_groups"][sg_id] = config
+    
+    save_ec2_baseline(baseline)
+    print(f"\nEC2 Baseline saved to {EC2_BASELINE_FILE}")
+    print(f"  {len(security_groups)} security group(s) captured")
+    
+    return baseline
+
+
+def compare_ec2_with_baseline():
+    """
+    Compare current security group configs with baseline and detect drift.
+    
+    Returns:
+        list: List of drift objects, None if no baseline exists
+    """
+    baseline = load_ec2_baseline()
+    
+    if not baseline:
+        print("[WARNING] No EC2 baseline found. Run with --ec2 --baseline flag first.")
+        return None
+    
+    ec2 = get_ec2_client()
+    region = cfg.CURRENT_REGION or cfg.AWS_REGION
+    
+    try:
+        response = ec2.describe_security_groups()
+        security_groups = response.get('SecurityGroups', [])
+    except ClientError as e:
+        print(f"[ERROR] Failed to get security groups: {e}")
+        return None
+    
+    drifts = []
+    
+    print(f"Comparing against EC2 baseline (region: {region})...\n")
+    print(f"  Baseline created: {baseline.get('created_at', 'Unknown')}")
+    print(f"  Baseline region: {baseline.get('region', 'Unknown')}\n")
+    
+    for sg in security_groups:
+        sg_id = sg['GroupId']
+        sg_name = sg.get('GroupName', 'Unknown')
+        display_name = f"{sg_name} ({sg_id})"
+        
+        current_config = get_security_group_full_config(sg)
+        baseline_config = baseline.get("security_groups", {}).get(sg_id)
+        
+        if not baseline_config:
+            drifts.append({
+                "security_group": sg_id,
+                "name": sg_name,
+                "type": "NEW_SECURITY_GROUP",
+                "message": "Security group not in baseline (newly created)",
+                "current": current_config,
+                "baseline": None
+            })
+            print(f"[NEW]      {display_name}")
+            continue
+        
+        # Compare inbound rules
+        current_rules = current_config.get("inbound_rules", [])
+        baseline_rules = baseline_config.get("inbound_rules", [])
+        
+        # Sort rules for comparison
+        def rule_key(r):
+            return (r.get('protocol', ''), r.get('from_port', 0), r.get('to_port', 0), str(r.get('sources', [])))
+        
+        current_sorted = sorted(current_rules, key=rule_key)
+        baseline_sorted = sorted(baseline_rules, key=rule_key)
+        
+        if current_sorted != baseline_sorted:
+            # Find what changed
+            added_rules = []
+            removed_rules = []
+            
+            current_set = {rule_key(r) for r in current_rules}
+            baseline_set = {rule_key(r) for r in baseline_rules}
+            
+            for r in current_rules:
+                if rule_key(r) not in baseline_set:
+                    added_rules.append(r)
+            
+            for r in baseline_rules:
+                if rule_key(r) not in current_set:
+                    removed_rules.append(r)
+            
+            drifts.append({
+                "security_group": sg_id,
+                "name": sg_name,
+                "type": "RULES_CHANGED",
+                "message": "Inbound rules changed",
+                "added_rules": added_rules,
+                "removed_rules": removed_rules,
+                "current": current_config,
+                "baseline": baseline_config
+            })
+            print(f"[DRIFT]    {display_name}")
+            if added_rules:
+                print(f"           + {len(added_rules)} rule(s) added")
+            if removed_rules:
+                print(f"           - {len(removed_rules)} rule(s) removed")
+        else:
+            print(f"[OK]       {display_name}")
+    
+    # Check for deleted security groups
+    current_sg_ids = [sg['GroupId'] for sg in security_groups]
+    for baseline_sg_id in baseline.get("security_groups", {}).keys():
+        if baseline_sg_id not in current_sg_ids:
+            baseline_config = baseline.get("security_groups", {}).get(baseline_sg_id, {})
+            drifts.append({
+                "security_group": baseline_sg_id,
+                "name": baseline_config.get("group_name", "Unknown"),
+                "type": "SECURITY_GROUP_DELETED",
+                "message": "Security group was deleted",
+                "current": None,
+                "baseline": baseline_config
+            })
+            print(f"[DELETED]  {baseline_config.get('group_name', baseline_sg_id)} ({baseline_sg_id})")
+    
+    return drifts

@@ -8,6 +8,7 @@ logs/*.log
 
 # Generated files
 baseline.json
+ec2_baseline.json
 
 # C extensions
 *.so

@@ -11,11 +11,66 @@ from datetime import datetime
 
 from src import config as cfg
 from src.scanner import scan_all_buckets
-from src.baseline import create_baseline, compare_with_baseline, remediate_drift
-from src.alerts import send_alerts, send_drift_alerts, send_ec2_alerts
+from src.baseline import create_baseline, compare_with_baseline, remediate_drift, create_ec2_baseline, compare_ec2_with_baseline
+from src.alerts import send_alerts, send_drift_alerts, send_ec2_alerts, send_ec2_drift_alerts
 from src.ec2_scanner import scan_security_groups
 
 VERSION = "1.0.0"
+
+# Well-known port to service name mapping
+PORT_SERVICES = {
+    22: "SSH",
+    23: "Telnet",
+    25: "SMTP",
+    53: "DNS",
+    80: "HTTP",
+    110: "POP3",
+    143: "IMAP",
+    443: "HTTPS",
+    445: "SMB",
+    465: "SMTPS",
+    587: "SMTP",
+    993: "IMAPS",
+    995: "POP3S",
+    1433: "MSSQL",
+    1521: "Oracle DB",
+    3306: "MySQL",
+    3389: "RDP",
+    5432: "PostgreSQL",
+    5439: "Redshift",
+    5900: "VNC",
+    6379: "Redis",
+    8080: "HTTP-Alt",
+    8443: "HTTPS-Alt",
+    9200: "Elasticsearch",
+    27017: "MongoDB",
+}
+
+
+def get_port_description(protocol, from_port, to_port):
+    """Get human-readable description for port range."""
+    if protocol == "-1" or protocol == "all":
+        return "All Traffic"
+    
+    proto_upper = protocol.upper() if protocol else "TCP"
+    
+    # Handle all ports
+    if from_port == 0 and to_port == 65535:
+        return f"All {proto_upper} Ports (0-65535)"
+    
+    # Single port
+    if from_port == to_port:
+        service = PORT_SERVICES.get(from_port)
+        if service:
+            return f"{service} ({from_port})"
+        return f"{proto_upper} Port {from_port}"
+    
+    # Port range - check if it matches a known service
+    service = PORT_SERVICES.get(from_port)
+    if service and from_port == to_port:
+        return f"{service} ({from_port})"
+    
+    return f"{proto_upper} Ports {from_port}-{to_port}"
 
 
 def print_banner(title):
@@ -73,10 +128,12 @@ def print_help():
     print("  python main.py                       # Run S3 security scan")
     print("  python main.py --ec2                 # Run EC2 security group scan")
     print("  python main.py --ec2 --region us-east-1  # Scan EC2 in us-east-1")
+    print("  python main.py --ec2 --baseline      # Create EC2 baseline")
+    print("  python main.py --ec2 --drift         # Detect EC2 drift")
     print("  python main.py --all                 # Run all scans")
-    print("  python main.py --baseline            # Save current config as baseline")
-    print("  python main.py --drift               # Detect config changes")
-    print("  python main.py --fix                 # Fix drifted configs to baseline")
+    print("  python main.py --baseline            # Save S3 config as baseline")
+    print("  python main.py --drift               # Detect S3 config changes")
+    print("  python main.py --fix                 # Fix drifted S3 configs")
     print()
     print("CONFIGURATION:")
     print("  Edit src/config.py to configure email alerts.")
@@ -231,6 +288,93 @@ def run_ec2_scan():
         print("[+] All security groups are secure. No action required.")
 
 
+def run_ec2_baseline_creation():
+    """Create EC2 security group baseline."""
+    print_banner("CREATE EC2 BASELINE")
+    
+    print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    create_ec2_baseline()
+
+
+def run_ec2_drift_detection():
+    """Check for EC2 security group drift."""
+    print_banner("EC2 DRIFT DETECTION")
+    
+    print(f"Scan started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    drifts = compare_ec2_with_baseline()
+    
+    if drifts is None:
+        print()
+        print("[!] No EC2 baseline found.")
+        print("    Run 'python main.py --ec2 --baseline' first to create one.")
+        return None
+    elif drifts:
+        print()
+        print("+" + "-" * 58 + "+")
+        print("|  EC2 DRIFT DETECTION RESULTS".ljust(59) + "|")
+        print("+" + "-" * 58 + "+")
+        print(f"|  Configuration drifts found: {len(drifts)}".ljust(59) + "|")
+        print("+" + "-" * 58 + "+")
+        
+        # Show drift details
+        print()
+        print("DRIFT DETAILS:")
+        print("-" * 60)
+        for drift in drifts:
+            sg_name = drift.get('name', 'Unknown')
+            sg_id = drift.get('security_group', 'Unknown')
+            drift_type = drift.get('type', 'Unknown')
+            
+            print(f"\n  {sg_name} ({sg_id})")
+            print(f"  Type: {drift_type}")
+            
+            if drift_type == "RULES_CHANGED":
+                added = drift.get('added_rules', [])
+                removed = drift.get('removed_rules', [])
+                
+                if added:
+                    print("  Rules ADDED:")
+                    for rule in added:
+                        proto = rule.get('protocol', 'all')
+                        from_p = rule.get('from_port', 0)
+                        to_p = rule.get('to_port', 65535)
+                        sources = rule.get('sources', [])
+                        port_desc = get_port_description(proto, from_p, to_p)
+                        print(f"    + {port_desc} from {sources}")
+                
+                if removed:
+                    print("  Rules REMOVED:")
+                    for rule in removed:
+                        proto = rule.get('protocol', 'all')
+                        from_p = rule.get('from_port', 0)
+                        to_p = rule.get('to_port', 65535)
+                        sources = rule.get('sources', [])
+                        port_desc = get_port_description(proto, from_p, to_p)
+                        print(f"    - {port_desc} from {sources}")
+            
+            elif drift_type == "NEW_SECURITY_GROUP":
+                print("  Status: New security group (not in baseline)")
+            
+            elif drift_type == "SECURITY_GROUP_DELETED":
+                print("  Status: Security group was deleted")
+        
+        print()
+        print("-" * 60)
+        
+        # Send email alerts
+        send_ec2_drift_alerts(drifts)
+        
+        return drifts
+    else:
+        print()
+        print("[+] All EC2 configurations match baseline. No drift detected.")
+        return []
+
+
 def run_all_scans():
     """Run both S3 and EC2 security scans."""
     print_banner("FULL SECURITY SCAN")
@@ -298,6 +442,15 @@ def main():
             return 0
         
         elif arg in ("--ec2", "-e", "ec2"):
+            # Check for sub-commands
+            if len(args) > 1:
+                sub_arg = args[1].lower()
+                if sub_arg in ("--baseline", "-b", "baseline"):
+                    run_ec2_baseline_creation()
+                    return 0
+                elif sub_arg in ("--drift", "-d", "drift"):
+                    run_ec2_drift_detection()
+                    return 0
             run_ec2_scan()
             return 0
         

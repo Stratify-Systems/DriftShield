@@ -524,3 +524,163 @@ def send_ec2_slack_alert(at_risk_groups, details):
     except Exception as e:
         print(f"[SLACK] EC2 alert failed: {e}")
         return False
+
+
+def send_ec2_drift_alerts(drifts):
+    """
+    Send alerts for EC2 security group drift.
+    
+    Args:
+        drifts: List of drift objects containing security group changes
+        
+    Returns:
+        bool: True if alert sent successfully
+    """
+    if not drifts:
+        print("[INFO] No EC2 drift detected - no alerts needed")
+        return False
+    
+    if not AWS_SES_CONFIG["enabled"]:
+        print("[EMAIL] AWS SES alerts disabled")
+        return False
+    
+    try:
+        print()
+        print("[ALERT] Sending EC2 drift alerts...")
+        print("[EMAIL] Connecting to AWS SES...")
+        
+        ses = boto3.client('ses', region_name=AWS_SES_CONFIG["region"])
+        
+        # Build drift details for HTML
+        drift_rows = ""
+        drift_text_list = ""
+        
+        for drift in drifts:
+            sg_name = drift.get('name', 'Unknown')
+            sg_id = drift.get('security_group', 'Unknown')
+            drift_type = drift.get('type', 'Unknown')
+            
+            details_html = ""
+            details_text = ""
+            
+            if drift_type == "RULES_CHANGED":
+                added = drift.get('added_rules', [])
+                removed = drift.get('removed_rules', [])
+                
+                if added:
+                    details_html += "<strong>Rules Added:</strong><br>"
+                    details_text += "    Rules Added:\n"
+                    for rule in added:
+                        proto = rule.get('protocol', 'all')
+                        from_p = rule.get('from_port', 0)
+                        to_p = rule.get('to_port', 65535)
+                        sources = rule.get('sources', [])
+                        details_html += f"&nbsp;&nbsp;+ {proto} : {from_p}-{to_p} from {sources}<br>"
+                        details_text += f"      + {proto} : {from_p}-{to_p} from {sources}\n"
+                
+                if removed:
+                    details_html += "<strong>Rules Removed:</strong><br>"
+                    details_text += "    Rules Removed:\n"
+                    for rule in removed:
+                        proto = rule.get('protocol', 'all')
+                        from_p = rule.get('from_port', 0)
+                        to_p = rule.get('to_port', 65535)
+                        sources = rule.get('sources', [])
+                        details_html += f"&nbsp;&nbsp;- {proto} : {from_p}-{to_p} from {sources}<br>"
+                        details_text += f"      - {proto} : {from_p}-{to_p} from {sources}\n"
+            
+            elif drift_type == "NEW_SECURITY_GROUP":
+                details_html = "New security group (not in baseline)"
+                details_text = "    New security group (not in baseline)"
+            
+            elif drift_type == "SECURITY_GROUP_DELETED":
+                details_html = "Security group was deleted"
+                details_text = "    Security group was deleted"
+            
+            drift_rows += f"""
+            <tr>
+                <td style="padding: 8px; border: 1px solid #ddd;">{sg_name}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{sg_id}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{drift_type}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{details_html}</td>
+            </tr>
+            """
+            
+            drift_text_list += f"\n  - {sg_name} ({sg_id}) - {drift_type}\n{details_text}"
+        
+        html_body = f"""
+        <html>
+        <body>
+        <h2>DriftShield - EC2 Security Group Drift Detected</h2>
+        <p><strong>Time:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p><strong>Issue:</strong> EC2 security group configurations have drifted from baseline</p>
+        
+        <h3>Drift Summary ({len(drifts)} change(s)):</h3>
+        <table style="border-collapse: collapse; width: 100%;">
+            <tr style="background-color: #f2f2f2;">
+                <th style="padding: 8px; border: 1px solid #ddd;">Name</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Security Group</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Change Type</th>
+                <th style="padding: 8px; border: 1px solid #ddd;">Details</th>
+            </tr>
+            {drift_rows}
+        </table>
+        
+        <h3>Recommended Actions:</h3>
+        <ol>
+        <li>Review the security group rule changes</li>
+        <li>If changes are intentional, update baseline: <code>python main.py --ec2 --baseline</code></li>
+        <li>If unauthorized, revert the changes immediately in AWS Console</li>
+        <li>Check if new rules expose sensitive ports (SSH, RDP, databases)</li>
+        </ol>
+        
+        <p>---<br>DriftShield - Cloud Security Monitoring</p>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+DriftShield - EC2 Security Group Drift Detected
+================================================
+
+Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Issue: EC2 security group configurations have drifted from baseline
+
+Drifts Detected ({len(drifts)}):
+{drift_text_list}
+
+Recommended Actions:
+1. Review the security group rule changes
+2. If intentional, update baseline: python main.py --ec2 --baseline
+3. If unauthorized, revert changes immediately in AWS Console
+4. Check if new rules expose sensitive ports
+
+---
+DriftShield - Cloud Security Monitoring
+        """
+        
+        print("[EMAIL] Sending EC2 drift alert...")
+        
+        response = ses.send_email(
+            Source=AWS_SES_CONFIG["sender_email"],
+            Destination={
+                'ToAddresses': [AWS_SES_CONFIG["recipient_email"]]
+            },
+            Message={
+                'Subject': {
+                    'Data': f"[EC2 DRIFT] DriftShield: {len(drifts)} Security Group Change(s) Detected",
+                    'Charset': 'UTF-8'
+                },
+                'Body': {
+                    'Text': {'Data': text_body, 'Charset': 'UTF-8'},
+                    'Html': {'Data': html_body, 'Charset': 'UTF-8'}
+                }
+            }
+        )
+        
+        print(f"[EMAIL] EC2 drift alert sent. Message ID: {response['MessageId']}")
+        return True
+        
+    except Exception as e:
+        print(f"[EMAIL] EC2 drift alert failed: {e}")
+        return False
