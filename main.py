@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 from src.scanner import scan_all_buckets
-from src.baseline import create_baseline, compare_with_baseline
+from src.baseline import create_baseline, compare_with_baseline, remediate_drift
 from src.alerts import send_alerts, send_drift_alerts
 
 VERSION = "1.0.0"
@@ -50,17 +50,20 @@ def print_help():
     print("  (none)        Run security scan (default)")
     print("  --baseline    Create baseline from current configurations")
     print("  --drift       Check for configuration drift")
+    print("  --fix         Fix drifted configs back to baseline")
     print("  --help        Show this help message")
     print()
     print("SHORTCUTS:")
     print("  -b            Same as --baseline")
     print("  -d            Same as --drift")
+    print("  -f            Same as --fix")
     print("  -h            Same as --help")
     print()
     print("EXAMPLES:")
     print("  python main.py                 # Run security scan")
     print("  python main.py --baseline      # Save current config as baseline")
     print("  python main.py --drift         # Detect config changes")
+    print("  python main.py --fix           # Fix drifted configs to baseline")
     print()
     print("CONFIGURATION:")
     print("  Edit src/config.py to configure email alerts.")
@@ -122,6 +125,7 @@ def run_drift_detection():
         print()
         print("[!] No baseline found.")
         print("    Run 'python main.py --baseline' first to create one.")
+        return None
     elif drifts:
         print()
         print("+" + "-" * 58 + "+")
@@ -130,9 +134,56 @@ def run_drift_detection():
         print(f"|  Configuration drifts found: {len(drifts)}".ljust(59) + "|")
         print("+" + "-" * 58 + "+")
         send_drift_alerts(drifts)
+        return drifts
     else:
         print()
         print("[+] All configurations match baseline. No drift detected.")
+        return []
+
+
+def run_fix_drifts():
+    """Detect drift and fix configurations back to baseline."""
+    print_banner("REMEDIATION")
+    
+    print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    # First detect drifts
+    drifts = compare_with_baseline()
+    
+    if drifts is None:
+        print()
+        print("[!] No baseline found.")
+        print("    Run 'python main.py --baseline' first to create one.")
+        return
+    
+    if not drifts:
+        print()
+        print("[+] No drifts detected. Nothing to fix.")
+        return
+    
+    print()
+    print(f"Found {len(drifts)} drift(s). Starting remediation...")
+    print()
+    
+    results = remediate_drift(drifts)
+    
+    print()
+    print("+" + "-" * 58 + "+")
+    print("|  REMEDIATION RESULTS".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    print(f"|  Fixed:    {len(results['fixed'])}".ljust(59) + "|")
+    print(f"|  Failed:   {len(results['failed'])}".ljust(59) + "|")
+    print(f"|  Skipped:  {len(results['skipped'])}".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    
+    if results['failed']:
+        print()
+        print("[!] Some remediations failed. Check IAM permissions:")
+        print("    - s3:PutBucketPublicAccessBlock")
+        print("    - s3:PutBucketVersioning")
+        print("    - s3:PutBucketEncryption")
+        print("    - s3:DeleteBucketEncryption")
 
 
 def main():
@@ -150,6 +201,10 @@ def main():
         
         elif arg in ("--drift", "-d", "drift"):
             run_drift_detection()
+            return 0
+        
+        elif arg in ("--fix", "-f", "fix"):
+            run_fix_drifts()
             return 0
         
         else:

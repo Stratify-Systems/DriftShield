@@ -228,3 +228,121 @@ def compare_with_baseline():
             print(f"[DELETED]  {baseline_bucket}")
     
     return drifts
+
+
+def remediate_drift(drifts):
+    """
+    Fix drifted configurations by restoring baseline settings.
+    
+    Args:
+        drifts: List of drift objects from compare_with_baseline()
+        
+    Returns:
+        dict: Results with fixed and failed lists
+    """
+    if not drifts:
+        print("[INFO] No drifts to remediate.")
+        return {"fixed": [], "failed": [], "skipped": []}
+    
+    s3 = boto3.client('s3')
+    baseline = load_baseline()
+    
+    results = {
+        "fixed": [],
+        "failed": [],
+        "skipped": []
+    }
+    
+    print("Starting remediation...\n")
+    
+    for drift in drifts:
+        bucket = drift["bucket"]
+        drift_type = drift["type"]
+        
+        # Skip buckets that can't be remediated
+        if drift_type in ["NEW_BUCKET", "BUCKET_DELETED"]:
+            print(f"[SKIP]    {bucket} - {drift_type} (manual action required)")
+            results["skipped"].append({
+                "bucket": bucket,
+                "type": drift_type,
+                "reason": "Manual action required"
+            })
+            continue
+        
+        try:
+            baseline_config = baseline.get("buckets", {}).get(bucket, {})
+            
+            if drift_type == "PUBLIC_ACCESS_CHANGED":
+                baseline_pab = baseline_config.get("public_access_block", {})
+                s3.put_public_access_block(
+                    Bucket=bucket,
+                    PublicAccessBlockConfiguration={
+                        'BlockPublicAcls': baseline_pab.get('BlockPublicAcls', True),
+                        'IgnorePublicAcls': baseline_pab.get('IgnorePublicAcls', True),
+                        'BlockPublicPolicy': baseline_pab.get('BlockPublicPolicy', True),
+                        'RestrictPublicBuckets': baseline_pab.get('RestrictPublicBuckets', True)
+                    }
+                )
+                print(f"[FIXED]   {bucket} - Public access block restored")
+                results["fixed"].append({"bucket": bucket, "type": drift_type})
+            
+            elif drift_type == "VERSIONING_CHANGED":
+                baseline_versioning = baseline_config.get("versioning", "Disabled")
+                if baseline_versioning == "Enabled":
+                    s3.put_bucket_versioning(
+                        Bucket=bucket,
+                        VersioningConfiguration={'Status': 'Enabled'}
+                    )
+                elif baseline_versioning in ["Disabled", None]:
+                    s3.put_bucket_versioning(
+                        Bucket=bucket,
+                        VersioningConfiguration={'Status': 'Suspended'}
+                    )
+                print(f"[FIXED]   {bucket} - Versioning restored to {baseline_versioning}")
+                results["fixed"].append({"bucket": bucket, "type": drift_type})
+            
+            elif drift_type == "ENCRYPTION_CHANGED":
+                baseline_encryption = baseline_config.get("encryption", "None")
+                if baseline_encryption and baseline_encryption not in ["None", "Unknown"]:
+                    s3.put_bucket_encryption(
+                        Bucket=bucket,
+                        ServerSideEncryptionConfiguration={
+                            'Rules': [{
+                                'ApplyServerSideEncryptionByDefault': {
+                                    'SSEAlgorithm': baseline_encryption
+                                }
+                            }]
+                        }
+                    )
+                    print(f"[FIXED]   {bucket} - Encryption restored to {baseline_encryption}")
+                else:
+                    s3.delete_bucket_encryption(Bucket=bucket)
+                    print(f"[FIXED]   {bucket} - Encryption removed (baseline had none)")
+                results["fixed"].append({"bucket": bucket, "type": drift_type})
+            
+            else:
+                print(f"[SKIP]    {bucket} - Unknown drift type: {drift_type}")
+                results["skipped"].append({
+                    "bucket": bucket,
+                    "type": drift_type,
+                    "reason": "Unknown drift type"
+                })
+        
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            error_msg = e.response['Error']['Message']
+            print(f"[FAILED]  {bucket} - {error_code}: {error_msg}")
+            results["failed"].append({
+                "bucket": bucket,
+                "type": drift_type,
+                "error": f"{error_code}: {error_msg}"
+            })
+        except Exception as e:
+            print(f"[FAILED]  {bucket} - {str(e)}")
+            results["failed"].append({
+                "bucket": bucket,
+                "type": drift_type,
+                "error": str(e)
+            })
+    
+    return results
