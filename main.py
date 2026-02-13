@@ -9,9 +9,10 @@ for security risks and configuration drift.
 import sys
 from datetime import datetime
 
+from src import config as cfg
 from src.scanner import scan_all_buckets
 from src.baseline import create_baseline, compare_with_baseline, remediate_drift
-from src.alerts import send_alerts, send_drift_alerts
+from src.alerts import send_alerts, send_drift_alerts, send_ec2_alerts
 from src.ec2_scanner import scan_security_groups
 
 VERSION = "1.0.0"
@@ -56,21 +57,26 @@ def print_help():
     print("  --fix         Fix drifted configs back to baseline")
     print("  --help        Show this help message")
     print()
+    print("OPTIONS:")
+    print("  --region <name>   Set AWS region (e.g., us-east-1, eu-west-1)")
+    print()
     print("SHORTCUTS:")
     print("  -e            Same as --ec2")
     print("  -a            Same as --all")
     print("  -b            Same as --baseline")
     print("  -d            Same as --drift")
     print("  -f            Same as --fix")
+    print("  -r <name>     Same as --region")
     print("  -h            Same as --help")
     print()
     print("EXAMPLES:")
-    print("  python main.py                 # Run S3 security scan")
-    print("  python main.py --ec2           # Run EC2 security group scan")
-    print("  python main.py --all           # Run all scans")
-    print("  python main.py --baseline      # Save current config as baseline")
-    print("  python main.py --drift         # Detect config changes")
-    print("  python main.py --fix           # Fix drifted configs to baseline")
+    print("  python main.py                       # Run S3 security scan")
+    print("  python main.py --ec2                 # Run EC2 security group scan")
+    print("  python main.py --ec2 --region us-east-1  # Scan EC2 in us-east-1")
+    print("  python main.py --all                 # Run all scans")
+    print("  python main.py --baseline            # Save current config as baseline")
+    print("  python main.py --drift               # Detect config changes")
+    print("  python main.py --fix                 # Fix drifted configs to baseline")
     print()
     print("CONFIGURATION:")
     print("  Edit src/config.py to configure email alerts.")
@@ -217,6 +223,9 @@ def run_ec2_scan():
             details = results['details'].get(sg_id, {})
             config = details.get('config', {})
             print(f"    - {config.get('group_name', sg_id)} ({sg_id})")
+        
+        # Send email alerts
+        send_ec2_alerts(results['at_risk'], results['details'])
     else:
         print()
         print("[+] All security groups are secure. No action required.")
@@ -269,8 +278,20 @@ def run_all_scans():
 
 def main():
     """Main entry point."""
-    if len(sys.argv) > 1:
-        arg = sys.argv[1].lower()
+    args = sys.argv[1:]
+    
+    # Parse --region flag first
+    i = 0
+    while i < len(args):
+        if args[i] in ("--region", "-r") and i + 1 < len(args):
+            cfg.CURRENT_REGION = args[i + 1]
+            args.pop(i)  # Remove --region
+            args.pop(i)  # Remove region value
+        else:
+            i += 1
+    
+    if len(args) > 0:
+        arg = args[0].lower()
         
         if arg in ("--help", "-h", "help"):
             print_help()

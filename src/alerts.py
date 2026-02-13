@@ -330,3 +330,197 @@ DriftShield - Cloud Security Monitoring
     except Exception as e:
         print(f"[EMAIL] Drift alert failed: {e}")
         return False
+
+
+def send_ec2_alerts(at_risk_groups, details):
+    """
+    Send alerts for EC2 security group risks.
+    
+    Args:
+        at_risk_groups: List of security group IDs that are at risk
+        details: Dict with security group details and risks
+    """
+    if not at_risk_groups:
+        return
+    
+    print()
+    print("[ALERT] Sending EC2 security alerts...")
+    
+    # Send email alert
+    if AWS_SES_CONFIG["enabled"]:
+        send_ec2_ses_alert(at_risk_groups, details)
+    
+    # Send Slack alert
+    if SLACK_CONFIG["enabled"]:
+        send_ec2_slack_alert(at_risk_groups, details)
+
+
+def send_ec2_ses_alert(at_risk_groups, details):
+    """
+    Send email alert for EC2 security group risks via AWS SES.
+    
+    Args:
+        at_risk_groups: List of security group IDs that are at risk
+        details: Dict with security group details and risks
+        
+    Returns:
+        bool: True if email sent successfully
+    """
+    try:
+        ses = boto3.client('ses', region_name=AWS_SES_CONFIG["region"])
+        
+        # Build HTML list of risky security groups
+        groups_html = ""
+        groups_text = ""
+        
+        for sg_id in at_risk_groups:
+            sg_details = details.get(sg_id, {})
+            config = sg_details.get("config", {})
+            risks = sg_details.get("risks", [])
+            
+            sg_name = config.get("group_name", "Unknown")
+            
+            risks_html = "".join(f"<li><strong>{r['severity']}</strong>: {r['message']}</li>" for r in risks)
+            risks_text = "\n".join(f"      - [{r['severity']}] {r['message']}" for r in risks)
+            
+            groups_html += f"""
+            <li>
+                <strong>{sg_name}</strong> ({sg_id})
+                <ul>{risks_html}</ul>
+            </li>
+            """
+            
+            groups_text += f"\n  - {sg_name} ({sg_id}):\n{risks_text}"
+        
+        html_body = f"""
+        <html>
+        <body>
+        <h2>DriftShield EC2 Security Alert</h2>
+        <p><strong>Time:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <p><strong>Issue:</strong> Security groups with risky configurations detected</p>
+        
+        <h3>At-Risk Security Groups:</h3>
+        <ul>
+        {groups_html}
+        </ul>
+        
+        <h3>Recommended Actions:</h3>
+        <ol>
+        <li>Review inbound rules in AWS Console</li>
+        <li>Restrict SSH/RDP access to specific IPs</li>
+        <li>Remove unnecessary open ports</li>
+        <li>Use VPN or bastion hosts for remote access</li>
+        </ol>
+        
+        <p>---<br>DriftShield - Cloud Security Monitoring</p>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+DriftShield EC2 Security Alert
+==============================
+
+Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Issue: Security groups with risky configurations detected
+
+At-Risk Security Groups:
+{groups_text}
+
+Recommended Actions:
+1. Review inbound rules in AWS Console
+2. Restrict SSH/RDP access to specific IPs
+3. Remove unnecessary open ports
+4. Use VPN or bastion hosts for remote access
+
+---
+DriftShield - Cloud Security Monitoring
+        """
+        
+        print("[EMAIL] Sending EC2 security alert...")
+        
+        response = ses.send_email(
+            Source=AWS_SES_CONFIG["sender_email"],
+            Destination={
+                'ToAddresses': [AWS_SES_CONFIG["recipient_email"]]
+            },
+            Message={
+                'Subject': {
+                    'Data': f"[ALERT] DriftShield: {len(at_risk_groups)} Risky EC2 Security Group(s)",
+                    'Charset': 'UTF-8'
+                },
+                'Body': {
+                    'Text': {'Data': text_body, 'Charset': 'UTF-8'},
+                    'Html': {'Data': html_body, 'Charset': 'UTF-8'}
+                }
+            }
+        )
+        
+        print(f"[EMAIL] EC2 alert sent. Message ID: {response['MessageId']}")
+        return True
+        
+    except Exception as e:
+        print(f"[EMAIL] EC2 alert failed: {e}")
+        return False
+
+
+def send_ec2_slack_alert(at_risk_groups, details):
+    """
+    Send Slack alert for EC2 security group risks.
+    
+    Args:
+        at_risk_groups: List of security group IDs
+        details: Dict with security group details
+        
+    Returns:
+        bool: True if alert sent successfully
+    """
+    if not HAS_URLLIB:
+        print("[SLACK] urllib not available")
+        return False
+    
+    try:
+        # Build message
+        blocks = []
+        
+        for sg_id in at_risk_groups:
+            sg_details = details.get(sg_id, {})
+            config = sg_details.get("config", {})
+            risks = sg_details.get("risks", [])
+            
+            sg_name = config.get("group_name", "Unknown")
+            risks_text = "\n".join(f"• [{r['severity']}] {r['message']}" for r in risks)
+            
+            blocks.append(f"*{sg_name}* (`{sg_id}`)\n{risks_text}")
+        
+        message = {
+            "text": f"EC2 Security Alert: {len(at_risk_groups)} risky security group(s)",
+            "blocks": [
+                {
+                    "type": "header",
+                    "text": {"type": "plain_text", "text": "DriftShield EC2 Alert"}
+                },
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": "\n\n".join(blocks)}
+                }
+            ]
+        }
+        
+        data = json.dumps(message).encode('utf-8')
+        req = urllib.request.Request(
+            SLACK_CONFIG["webhook_url"],
+            data=data,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status == 200:
+                print("[SLACK] EC2 alert sent successfully")
+                return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"[SLACK] EC2 alert failed: {e}")
+        return False

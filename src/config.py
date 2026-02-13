@@ -4,6 +4,9 @@ DriftShield Configuration
 Update these settings with your AWS credentials and preferences.
 """
 
+# Default AWS Region (can be overridden with --region flag)
+AWS_REGION = "ap-south-1"
+
 # AWS SES Email Settings
 AWS_SES_CONFIG = {
     "enabled": True,
@@ -20,3 +23,6 @@ SLACK_CONFIG = {
 
 # Baseline file location
 BASELINE_FILE = "baseline.json"
+
+# Runtime region (set by CLI, do not modify)
+CURRENT_REGION = None

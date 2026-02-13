@@ -7,6 +7,14 @@ Detects risky security group configurations like open SSH, RDP, or database port
 import boto3
 from botocore.exceptions import ClientError
 
+from . import config as cfg
+
+
+def get_ec2_client():
+    """Get EC2 client with configured region."""
+    region = cfg.CURRENT_REGION or cfg.AWS_REGION
+    return boto3.client('ec2', region_name=region)
+
 
 # Risky ports and their descriptions
 RISKY_PORTS = {
@@ -137,7 +145,8 @@ def scan_security_groups():
     Returns:
         dict: Results with 'secure', 'at_risk' lists and 'details'
     """
-    ec2 = boto3.client('ec2')
+    ec2 = get_ec2_client()
+    region = cfg.CURRENT_REGION or cfg.AWS_REGION
     
     results = {
         "secure": [],
@@ -152,6 +161,7 @@ def scan_security_groups():
         print(f"[ERROR] Failed to get security groups: {e}")
         return results
     
+    print(f"Region: {region}")
     print(f"Found {len(security_groups)} security group(s)\n")
     
     for sg in security_groups:
@@ -196,7 +206,7 @@ def get_all_security_group_configs():
     Returns:
         dict: Security group ID -> config mapping
     """
-    ec2 = boto3.client('ec2')
+    ec2 = get_ec2_client()
     configs = {}
     
     try:
