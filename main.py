@@ -101,21 +101,24 @@ def print_help():
     print("  and monitors configuration drift against a secure baseline.")
     print()
     print("USAGE:")
-    print("  driftshield [command]")
+    print("  driftshield <service> [sub-command] [options]")
     print()
-    print("COMMANDS:")
-    print("  (none)        Run S3 security scan (default)")
+    print("SERVICES:")
+    print("  --s3          Run S3 security scan")
     print("  --ec2         Run EC2 security group scan")
     print("  --all         Run both S3 and EC2 scans")
+    print("  --help        Show this help message")
+    print()
+    print("SUB-COMMANDS:")
     print("  --baseline    Create baseline from current configurations")
     print("  --drift       Check for configuration drift")
-    print("  --fix         Fix drifted configs back to baseline")
-    print("  --help        Show this help message")
+    print("  --fix         Fix drifted configs back to baseline (S3 only)")
     print()
     print("OPTIONS:")
     print("  --region <name>   Set AWS region (e.g., us-east-1, eu-west-1)")
     print()
     print("SHORTCUTS:")
+    print("  -s            Same as --s3")
     print("  -e            Same as --ec2")
     print("  -a            Same as --all")
     print("  -b            Same as --baseline")
@@ -125,15 +128,15 @@ def print_help():
     print("  -h            Same as --help")
     print()
     print("EXAMPLES:")
-    print("  python main.py                       # Run S3 security scan")
+    print("  python main.py --s3                  # Run S3 security scan")
+    print("  python main.py --s3 --baseline       # Create S3 baseline")
+    print("  python main.py --s3 --drift          # Detect S3 drift")
+    print("  python main.py --s3 --fix            # Fix drifted S3 configs")
     print("  python main.py --ec2                 # Run EC2 security group scan")
-    print("  python main.py --ec2 --region us-east-1  # Scan EC2 in us-east-1")
     print("  python main.py --ec2 --baseline      # Create EC2 baseline")
     print("  python main.py --ec2 --drift         # Detect EC2 drift")
+    print("  python main.py --ec2 --region us-east-1  # Scan EC2 in us-east-1")
     print("  python main.py --all                 # Run all scans")
-    print("  python main.py --baseline            # Save S3 config as baseline")
-    print("  python main.py --drift               # Detect S3 config changes")
-    print("  python main.py --fix                 # Fix drifted S3 configs")
     print()
     print("CONFIGURATION:")
     print("  Edit src/config.py to configure email alerts.")
@@ -441,6 +444,22 @@ def main():
             print_help()
             return 0
         
+        elif arg in ("--s3", "-s", "s3"):
+            # Check for sub-commands
+            if len(args) > 1:
+                sub_arg = args[1].lower()
+                if sub_arg in ("--baseline", "-b", "baseline"):
+                    run_baseline_creation()
+                    return 0
+                elif sub_arg in ("--drift", "-d", "drift"):
+                    run_drift_detection()
+                    return 0
+                elif sub_arg in ("--fix", "-f", "fix"):
+                    run_fix_drifts()
+                    return 0
+            run_security_scan()
+            return 0
+        
         elif arg in ("--ec2", "-e", "ec2"):
             # Check for sub-commands
             if len(args) > 1:
@@ -458,25 +477,13 @@ def main():
             run_all_scans()
             return 0
         
-        elif arg in ("--baseline", "-b", "baseline"):
-            run_baseline_creation()
-            return 0
-        
-        elif arg in ("--drift", "-d", "drift"):
-            run_drift_detection()
-            return 0
-        
-        elif arg in ("--fix", "-f", "fix"):
-            run_fix_drifts()
-            return 0
-        
         else:
             print(f"[ERROR] Unknown option: {arg}")
             print("        Run 'python main.py --help' for usage information.")
             return 1
     
-    # Default: Run security scan
-    run_security_scan()
+    # Default: Show help (no default scan anymore)
+    print_help()
     return 0
 
 

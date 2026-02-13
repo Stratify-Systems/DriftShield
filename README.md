@@ -60,40 +60,38 @@ DriftShield/
 
 ## Usage
 
-### Run S3 Security Scan
+### S3 Commands
 ```bash
-python main.py
+python main.py --s3                  # Run S3 security scan
+python main.py --s3 --baseline        # Create S3 baseline
+python main.py --s3 --drift           # Detect S3 configuration drift
+python main.py --s3 --fix             # Fix drifted S3 configs
 ```
 
-### Run EC2 Security Group Scan
+### EC2 Commands
 ```bash
-python main.py --ec2
+python main.py --ec2                  # Run EC2 security group scan
+python main.py --ec2 --baseline       # Create EC2 baseline
+python main.py --ec2 --drift          # Detect EC2 configuration drift
+python main.py --ec2 --region us-east-1  # Scan specific region
 ```
 
-### Run All Scans (S3 + EC2)
+### Other Commands
 ```bash
-python main.py --all
+python main.py --all                  # Run both S3 and EC2 scans
+python main.py --help                 # Show help message
 ```
 
-### Create Baseline
-```bash
-python main.py --baseline
-```
-
-### Check for Configuration Drift
-```bash
-python main.py --drift
-```
-
-### Fix Drifted Configurations
-```bash
-python main.py --fix
-```
-
-### Show Help
-```bash
-python main.py --help
-```
+### Shortcuts
+| Short | Full | Description |
+|-------|------|-------------|
+| `-s` | `--s3` | S3 commands |
+| `-e` | `--ec2` | EC2 commands |
+| `-a` | `--all` | All scans |
+| `-b` | `--baseline` | Create baseline |
+| `-d` | `--drift` | Drift detection |
+| `-f` | `--fix` | Fix drifts |
+| `-r` | `--region` | Set AWS region |
 
 ## EC2 Security Checks
 
@@ -120,7 +118,9 @@ Set up automated scans to run every hour:
 
 ### 1. Test the script manually
 ```bash
-./scripts/scheduled_scan.sh both
+./scripts/scheduled_scan.sh all        # Run all scans + drift detection
+./scripts/scheduled_scan.sh s3         # Run S3 scan + drift
+./scripts/scheduled_scan.sh ec2        # Run EC2 scan + drift
 ```
 
 ### 2. Add to crontab
@@ -132,19 +132,19 @@ crontab -e
 
 Replace `/path/to/DriftShield` with your actual installation path.
 
-**Run both scan and drift detection every hour:**
+**Run all scans and drift detection every hour:**
 ```
-0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh both >> /path/to/DriftShield/logs/cron.log 2>&1
-```
-
-**Run security scan every hour:**
-```
-0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh scan >> /path/to/DriftShield/logs/cron.log 2>&1
+0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh all >> /path/to/DriftShield/logs/cron.log 2>&1
 ```
 
-**Run drift detection every 30 minutes:**
+**Run S3 scan and drift detection every hour:**
 ```
-*/30 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh drift >> /path/to/DriftShield/logs/cron.log 2>&1
+0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh s3 >> /path/to/DriftShield/logs/cron.log 2>&1
+```
+
+**Run EC2 scan and drift detection every 30 minutes:**
+```
+*/30 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh ec2 >> /path/to/DriftShield/logs/cron.log 2>&1
 ```
 
 ### 4. View logs
