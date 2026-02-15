@@ -218,3 +218,195 @@ def get_all_security_group_configs():
         print(f"[ERROR] Failed to get security groups: {e}")
     
     return configs
+
+
+def remediate_ec2_risks(dry_run=False):
+    """
+    Remove risky inbound rules from security groups.
+    
+    Removes rules that allow access from 0.0.0.0/0 or ::/0 to:
+    - SSH (22), RDP (3389)
+    - Database ports (MySQL, PostgreSQL, MSSQL, MongoDB, Redis, etc.)
+    - All traffic (-1)
+    - All ports (0-65535)
+    
+    Args:
+        dry_run: If True, only show what would be removed without making changes
+        
+    Returns:
+        dict: Results with 'fixed', 'failed', 'skipped' lists
+    """
+    ec2 = get_ec2_client()
+    region = cfg.CURRENT_REGION or cfg.AWS_REGION
+    
+    results = {
+        "fixed": [],
+        "failed": [],
+        "skipped": []
+    }
+    
+    try:
+        response = ec2.describe_security_groups()
+        security_groups = response.get('SecurityGroups', [])
+    except ClientError as e:
+        print(f"[ERROR] Failed to get security groups: {e}")
+        return results
+    
+    print(f"Region: {region}")
+    print(f"Scanning {len(security_groups)} security group(s) for risky rules...\n")
+    
+    for sg in security_groups:
+        sg_id = sg['GroupId']
+        sg_name = sg.get('GroupName', 'Unknown')
+        display_name = f"{sg_name} ({sg_id})"
+        
+        # Skip default security groups (can't modify them easily)
+        if sg_name == 'default':
+            results["skipped"].append({
+                "security_group": sg_id,
+                "name": sg_name,
+                "reason": "Default security group - manual review recommended"
+            })
+            print(f"[SKIP]     {display_name} (default group)")
+            continue
+        
+        # Find risky rules to remove
+        rules_to_remove = []
+        
+        for rule in sg.get('IpPermissions', []):
+            protocol = rule.get('IpProtocol', '')
+            from_port = rule.get('FromPort', 0)
+            to_port = rule.get('ToPort', 65535)
+            
+            # Check IPv4 ranges
+            for ip_range in rule.get('IpRanges', []):
+                cidr = ip_range.get('CidrIp', '')
+                if cidr in OPEN_CIDRS:
+                    if is_risky_rule(protocol, from_port, to_port):
+                        rules_to_remove.append({
+                            "IpProtocol": protocol,
+                            "FromPort": from_port,
+                            "ToPort": to_port,
+                            "IpRanges": [{"CidrIp": cidr}]
+                        })
+            
+            # Check IPv6 ranges
+            for ip_range in rule.get('Ipv6Ranges', []):
+                cidr = ip_range.get('CidrIpv6', '')
+                if cidr in OPEN_CIDRS:
+                    if is_risky_rule(protocol, from_port, to_port):
+                        rules_to_remove.append({
+                            "IpProtocol": protocol,
+                            "FromPort": from_port,
+                            "ToPort": to_port,
+                            "Ipv6Ranges": [{"CidrIpv6": cidr}]
+                        })
+        
+        if not rules_to_remove:
+            continue
+        
+        # Remove the risky rules
+        for rule in rules_to_remove:
+            rule_desc = format_rule_description(rule)
+            
+            if dry_run:
+                print(f"[DRY-RUN]  {display_name}")
+                print(f"           Would remove: {rule_desc}")
+                results["fixed"].append({
+                    "security_group": sg_id,
+                    "name": sg_name,
+                    "rule_removed": rule_desc,
+                    "dry_run": True
+                })
+            else:
+                try:
+                    ec2.revoke_security_group_ingress(
+                        GroupId=sg_id,
+                        IpPermissions=[rule]
+                    )
+                    print(f"[FIXED]    {display_name}")
+                    print(f"           Removed: {rule_desc}")
+                    results["fixed"].append({
+                        "security_group": sg_id,
+                        "name": sg_name,
+                        "rule_removed": rule_desc
+                    })
+                except ClientError as e:
+                    print(f"[FAILED]   {display_name}")
+                    print(f"           Could not remove: {rule_desc}")
+                    print(f"           Error: {e}")
+                    results["failed"].append({
+                        "security_group": sg_id,
+                        "name": sg_name,
+                        "rule": rule_desc,
+                        "error": str(e)
+                    })
+    
+    return results
+
+
+def is_risky_rule(protocol, from_port, to_port):
+    """
+    Check if a rule is considered risky (should be removed).
+    
+    Args:
+        protocol: IP protocol (-1 for all, tcp, udp, icmp)
+        from_port: Start port
+        to_port: End port
+        
+    Returns:
+        bool: True if rule is risky
+    """
+    # All traffic is always risky
+    if protocol == '-1':
+        return True
+    
+    # All ports open is risky
+    if from_port == 0 and to_port == 65535:
+        return True
+    
+    # Check for risky ports
+    for port in RISKY_PORTS.keys():
+        if from_port <= port <= to_port:
+            return True
+    
+    return False
+
+
+def format_rule_description(rule):
+    """
+    Format a rule for human-readable display.
+    
+    Args:
+        rule: Rule dict with IpProtocol, FromPort, ToPort, IpRanges/Ipv6Ranges
+        
+    Returns:
+        str: Human-readable description
+    """
+    protocol = rule.get('IpProtocol', 'all')
+    from_port = rule.get('FromPort', 0)
+    to_port = rule.get('ToPort', 65535)
+    
+    # Get source
+    if rule.get('IpRanges'):
+        source = rule['IpRanges'][0].get('CidrIp', 'unknown')
+    elif rule.get('Ipv6Ranges'):
+        source = rule['Ipv6Ranges'][0].get('CidrIpv6', 'unknown')
+    else:
+        source = 'unknown'
+    
+    # Format protocol and ports
+    if protocol == '-1':
+        return f"All Traffic from {source}"
+    
+    if from_port == 0 and to_port == 65535:
+        return f"All {protocol.upper()} Ports (0-65535) from {source}"
+    
+    # Check for known service
+    if from_port == to_port:
+        service = RISKY_PORTS.get(from_port)
+        if service:
+            return f"{service} ({from_port}) from {source}"
+        return f"{protocol.upper()} Port {from_port} from {source}"
+    
+    return f"{protocol.upper()} Ports {from_port}-{to_port} from {source}"

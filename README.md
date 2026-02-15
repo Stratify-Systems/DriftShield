@@ -73,6 +73,7 @@ python main.py --s3 --fix             # Fix drifted S3 configs
 python main.py --ec2                  # Run EC2 security group scan
 python main.py --ec2 --baseline       # Create EC2 baseline
 python main.py --ec2 --drift          # Detect EC2 configuration drift
+python main.py --ec2 --fix            # Remove risky inbound rules
 python main.py --ec2 --region us-east-1  # Scan specific region
 ```
 
@@ -179,7 +180,8 @@ tail -f logs/cron.log
             "Effect": "Allow",
             "Action": [
                 "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSecurityGroupRules"
+                "ec2:DescribeSecurityGroupRules",
+                "ec2:RevokeSecurityGroupIngress"
             ],
             "Resource": "*"
         },

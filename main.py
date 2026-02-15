@@ -13,7 +13,7 @@ from src import config as cfg
 from src.scanner import scan_all_buckets
 from src.baseline import create_baseline, compare_with_baseline, remediate_drift, create_ec2_baseline, compare_ec2_with_baseline
 from src.alerts import send_alerts, send_drift_alerts, send_ec2_alerts, send_ec2_drift_alerts
-from src.ec2_scanner import scan_security_groups
+from src.ec2_scanner import scan_security_groups, remediate_ec2_risks
 
 VERSION = "1.0.0"
 
@@ -112,7 +112,7 @@ def print_help():
     print("SUB-COMMANDS:")
     print("  --baseline    Create baseline from current configurations")
     print("  --drift       Check for configuration drift")
-    print("  --fix         Fix drifted configs back to baseline (S3 only)")
+    print("  --fix         Fix risky configurations (S3 and EC2)")
     print()
     print("OPTIONS:")
     print("  --region <name>   Set AWS region (e.g., us-east-1, eu-west-1)")
@@ -135,6 +135,7 @@ def print_help():
     print("  python main.py --ec2                 # Run EC2 security group scan")
     print("  python main.py --ec2 --baseline      # Create EC2 baseline")
     print("  python main.py --ec2 --drift         # Detect EC2 drift")
+    print("  python main.py --ec2 --fix           # Remove risky EC2 rules")
     print("  python main.py --ec2 --region us-east-1  # Scan EC2 in us-east-1")
     print("  python main.py --all                 # Run all scans")
     print()
@@ -378,6 +379,60 @@ def run_ec2_drift_detection():
         return []
 
 
+def run_ec2_fix():
+    """Fix risky EC2 security group rules."""
+    print_banner("EC2 AUTO-FIX")
+    
+    print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    print("This will REMOVE risky inbound rules that allow access from 0.0.0.0/0:")
+    print("  - SSH (22), RDP (3389)")
+    print("  - Database ports (MySQL, PostgreSQL, MongoDB, Redis, etc.)")
+    print("  - All traffic / All ports")
+    print()
+    print("-" * 60)
+    print()
+    
+    # Confirm with user
+    print("[!] WARNING: This will modify your security groups!")
+    response = input("    Continue? (yes/no): ").strip().lower()
+    
+    if response not in ('yes', 'y'):
+        print()
+        print("[CANCELLED] No changes made.")
+        return
+    
+    print()
+    print("Scanning and fixing risky rules...")
+    print()
+    
+    results = remediate_ec2_risks(dry_run=False)
+    
+    print()
+    print("+" + "-" * 58 + "+")
+    print("|  EC2 REMEDIATION RESULTS".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    print(f"|  Fixed:    {len(results['fixed'])}".ljust(59) + "|")
+    print(f"|  Failed:   {len(results['failed'])}".ljust(59) + "|")
+    print(f"|  Skipped:  {len(results['skipped'])}".ljust(59) + "|")
+    print("+" + "-" * 58 + "+")
+    
+    if results['fixed']:
+        print()
+        print("[+] Risky rules removed. Run 'python main.py --ec2' to verify.")
+    
+    if results['failed']:
+        print()
+        print("[!] Some fixes failed. Check IAM permissions:")
+        print("    - ec2:RevokeSecurityGroupIngress")
+    
+    if results['skipped']:
+        print()
+        print("[!] Skipped security groups (manual review recommended):")
+        for item in results['skipped']:
+            print(f"    - {item['name']} ({item['security_group']}): {item['reason']}")
+
+
 def run_all_scans():
     """Run both S3 and EC2 security scans."""
     print_banner("FULL SECURITY SCAN")
@@ -469,6 +524,9 @@ def main():
                     return 0
                 elif sub_arg in ("--drift", "-d", "drift"):
                     run_ec2_drift_detection()
+                    return 0
+                elif sub_arg in ("--fix", "-f", "fix"):
+                    run_ec2_fix()
                     return 0
             run_ec2_scan()
             return 0
