@@ -2,6 +2,8 @@
 
 A cloud security tool that detects S3 and EC2 misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
 
+Built in Go for fast, single-binary distribution with zero runtime dependencies.
+
 ## Features
 
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
@@ -11,28 +13,40 @@ A cloud security tool that detects S3 and EC2 misconfigurations by monitoring se
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
 - **Slack Integration**: Optional Slack webhook alerts
 - **Scheduled Scanning**: Automated hourly scans via cron
+- **Shell Autocompletion**: Built-in completion for bash, zsh, fish, and PowerShell
 
 ## Project Structure
 
 ```
 DriftShield/
-├── main.py              # Entry point and CLI
-├── requirements.txt     # Python dependencies
-├── baseline.json        # Saved baseline configuration
-├── src/
-│   ├── __init__.py      # Package initialization
-│   ├── config.py        # Configuration settings
-│   ├── scanner.py       # S3 security scanning
-│   ├── ec2_scanner.py   # EC2 security group scanning
-│   ├── baseline.py      # Baseline management
-│   └── alerts.py        # Email and Slack alerts
+├── cmd/
+│   └── driftshield/
+│       └── main.go              # CLI entry point (cobra)
+├── internal/
+│   ├── types/types.go           # Shared data structures
+│   ├── config/config.go         # Configuration settings
+│   ├── display/display.go       # Banner and formatting
+│   ├── scanner/
+│   │   ├── s3.go                # S3 security scanning
+│   │   └── ec2.go               # EC2 security group scanning
+│   ├── baseline/
+│   │   ├── s3.go                # S3 baseline management
+│   │   └── ec2.go               # EC2 baseline management
+│   └── alerts/
+│       ├── ses.go               # AWS SES email alerts
+│       └── slack.go             # Slack webhook alerts
 ├── scripts/
-│   └── scheduled_scan.sh  # Cron job script
-└── logs/
-    └── cron.log         # Scheduled scan logs
+│   └── scheduled_scan.sh        # Cron job script
+├── logs/
+│   └── cron.log                 # Scheduled scan logs
+├── go.mod                       # Go module definition
+├── go.sum                       # Dependency checksums
+└── Makefile                     # Build targets
 ```
 
 ## Installation
+
+### From Source
 
 1. Clone the repository:
    ```bash
@@ -40,59 +54,71 @@ DriftShield/
    cd DriftShield
    ```
 
-2. Create a virtual environment:
+2. Build the binary:
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
+   make build
    ```
 
-3. Install dependencies:
+   This produces a `driftshield` binary in the project root.
+
+3. (Optional) Install system-wide:
    ```bash
-   pip install -r requirements.txt
+   make install
    ```
 
-4. Configure AWS credentials:
-   ```bash
-   aws configure
-   ```
+### Prerequisites
 
-5. Update configuration in `src/config.py`
+- **Go 1.21+** (for building from source)
+- **AWS CLI** configured with valid credentials:
+  ```bash
+  aws configure
+  ```
+
+4. Update configuration in `internal/config/config.go`
 
 ## Usage
 
 ### S3 Commands
 ```bash
-python main.py --s3                  # Run S3 security scan
-python main.py --s3 --baseline        # Create S3 baseline
-python main.py --s3 --drift           # Detect S3 configuration drift
-python main.py --s3 --fix             # Fix drifted S3 configs
+driftshield s3                    # Run S3 security scan
+driftshield s3 baseline           # Create S3 baseline
+driftshield s3 drift              # Detect S3 configuration drift
+driftshield s3 fix                # Fix drifted S3 configs
 ```
 
 ### EC2 Commands
 ```bash
-python main.py --ec2                  # Run EC2 security group scan
-python main.py --ec2 --baseline       # Create EC2 baseline
-python main.py --ec2 --drift          # Detect EC2 configuration drift
-python main.py --ec2 --fix            # Remove risky inbound rules
-python main.py --ec2 --region us-east-1  # Scan specific region
+driftshield ec2                   # Run EC2 security group scan
+driftshield ec2 baseline          # Create EC2 baseline
+driftshield ec2 drift             # Detect EC2 configuration drift
+driftshield ec2 fix               # Remove risky inbound rules
+driftshield ec2 -r us-east-1      # Scan specific region
 ```
 
 ### Other Commands
 ```bash
-python main.py --all                  # Run both S3 and EC2 scans
-python main.py --help                 # Show help message
+driftshield all                   # Run both S3 and EC2 scans
+driftshield --help                # Show help message
+driftshield --version             # Show version
+driftshield completion bash       # Generate bash completion script
 ```
 
-### Shortcuts
-| Short | Full | Description |
-|-------|------|-------------|
-| `-s` | `--s3` | S3 commands |
-| `-e` | `--ec2` | EC2 commands |
-| `-a` | `--all` | All scans |
-| `-b` | `--baseline` | Create baseline |
-| `-d` | `--drift` | Drift detection |
-| `-f` | `--fix` | Fix drifts |
-| `-r` | `--region` | Set AWS region |
+### Running Without Installing
+
+You can also run directly with `go run`:
+```bash
+go run ./cmd/driftshield s3
+go run ./cmd/driftshield ec2 drift
+go run ./cmd/driftshield all
+```
+
+### Global Flags
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--region` | `-r` | Set AWS region (e.g., us-east-1) |
+| `--help` | `-h` | Show help |
+| `--version` | `-v` | Show version |
 
 ## EC2 Security Checks
 
@@ -117,19 +143,24 @@ The EC2 scanner detects these risky configurations when open to `0.0.0.0/0`:
 
 Set up automated scans to run every hour:
 
-### 1. Test the script manually
+### 1. Build the binary
+```bash
+make build
+```
+
+### 2. Test the script manually
 ```bash
 ./scripts/scheduled_scan.sh all        # Run all scans + drift detection
 ./scripts/scheduled_scan.sh s3         # Run S3 scan + drift
 ./scripts/scheduled_scan.sh ec2        # Run EC2 scan + drift
 ```
 
-### 2. Add to crontab
+### 3. Add to crontab
 ```bash
 crontab -e
 ```
 
-### 3. Add one of these lines:
+### 4. Add one of these lines:
 
 Replace `/path/to/DriftShield` with your actual installation path.
 
@@ -148,7 +179,7 @@ Replace `/path/to/DriftShield` with your actual installation path.
 */30 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh ec2 >> /path/to/DriftShield/logs/cron.log 2>&1
 ```
 
-### 4. View logs
+### 5. View logs
 ```bash
 tail -f logs/cron.log
 ```
@@ -199,11 +230,28 @@ tail -f logs/cron.log
 
 ## Configuration
 
-Edit `src/config.py` to configure:
+Edit `internal/config/config.go` to configure:
 
-- **AWS_SES_CONFIG**: Email alert settings
-- **SLACK_CONFIG**: Slack webhook settings
-- **BASELINE_FILE**: Baseline storage location
+- **AWSSESConfig**: Email alert settings (sender, recipient, region)
+- **SlackConfig**: Slack webhook settings
+- **BaselineFile / EC2BaselineFile**: Baseline storage locations
+- **AWSRegion**: Default AWS region
+
+## Build Targets
+
+```bash
+make build     # Build the driftshield binary
+make run       # Run without building
+make install   # Install to $GOPATH/bin
+make tidy      # Run go mod tidy
+make clean     # Remove built binary
+```
+
+## Tech Stack
+
+- **Language**: Go 1.21+
+- **CLI Framework**: [Cobra](https://github.com/spf13/cobra)
+- **AWS SDK**: [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2)
 
 ## License
 
