@@ -21,18 +21,24 @@
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-VENV_PATH="$PROJECT_DIR/venv"
 LOG_DIR="$PROJECT_DIR/logs"
-PYTHON="$VENV_PATH/bin/python"
+DRIFTSHIELD="$PROJECT_DIR/driftshield"
 
 # Create logs directory if it doesn't exist
 mkdir -p "$LOG_DIR"
 
-# Activate virtual environment
-source "$VENV_PATH/bin/activate"
-
 # Change to project directory
 cd "$PROJECT_DIR"
+
+# Build if binary doesn't exist
+if [ ! -f "$DRIFTSHIELD" ]; then
+    echo "Building DriftShield..."
+    go build -o "$DRIFTSHIELD" ./cmd/driftshield
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to build DriftShield"
+        exit 1
+    fi
+fi
 
 # Determine scan type
 SCAN_TYPE="${1:-all}"
@@ -48,14 +54,14 @@ case "$SCAN_TYPE" in
     s3)
         # S3 Security scan
         echo "[$TIMESTAMP] Running S3 security scan..."
-        RESULT=$($PYTHON main.py --s3 2>&1)
+        RESULT=$($DRIFTSHIELD s3 2>&1)
         SECURE=$(echo "$RESULT" | grep -o "Secure buckets:.*[0-9]" | grep -o "[0-9]*")
         AT_RISK=$(echo "$RESULT" | grep -o "At-risk buckets:.*[0-9]" | grep -o "[0-9]*")
         echo "[$TIMESTAMP] S3 Scan complete - Secure: ${SECURE:-0}, At-Risk: ${AT_RISK:-0}"
         
         # S3 Drift detection
         echo "[$TIMESTAMP] Running S3 drift detection..."
-        RESULT=$($PYTHON main.py --s3 --drift 2>&1)
+        RESULT=$($DRIFTSHIELD s3 drift 2>&1)
         if echo "$RESULT" | grep -q "No drift detected"; then
             echo "[$TIMESTAMP] S3 Drift check complete - No drift detected"
         elif echo "$RESULT" | grep -q "drifts found"; then
@@ -68,14 +74,14 @@ case "$SCAN_TYPE" in
     ec2)
         # EC2 Security scan
         echo "[$TIMESTAMP] Running EC2 security scan..."
-        RESULT=$($PYTHON main.py --ec2 2>&1)
+        RESULT=$($DRIFTSHIELD ec2 2>&1)
         SECURE=$(echo "$RESULT" | grep -o "Secure:.*[0-9]" | grep -o "[0-9]*")
         AT_RISK=$(echo "$RESULT" | grep -o "At-risk:.*[0-9]" | grep -o "[0-9]*")
         echo "[$TIMESTAMP] EC2 Scan complete - Secure: ${SECURE:-0}, At-Risk: ${AT_RISK:-0}"
         
         # EC2 Drift detection
         echo "[$TIMESTAMP] Running EC2 drift detection..."
-        RESULT=$($PYTHON main.py --ec2 --drift 2>&1)
+        RESULT=$($DRIFTSHIELD ec2 drift 2>&1)
         if echo "$RESULT" | grep -q "No drift detected"; then
             echo "[$TIMESTAMP] EC2 Drift check complete - No drift detected"
         elif echo "$RESULT" | grep -q "drifts found"; then
@@ -88,14 +94,14 @@ case "$SCAN_TYPE" in
     all)
         # S3 Security scan
         echo "[$TIMESTAMP] Running S3 security scan..."
-        RESULT=$($PYTHON main.py --s3 2>&1)
+        RESULT=$($DRIFTSHIELD s3 2>&1)
         SECURE=$(echo "$RESULT" | grep -o "Secure buckets:.*[0-9]" | grep -o "[0-9]*")
         AT_RISK=$(echo "$RESULT" | grep -o "At-risk buckets:.*[0-9]" | grep -o "[0-9]*")
         echo "[$TIMESTAMP] S3 Scan complete - Secure: ${SECURE:-0}, At-Risk: ${AT_RISK:-0}"
         
         # S3 Drift detection
         echo "[$TIMESTAMP] Running S3 drift detection..."
-        RESULT=$($PYTHON main.py --s3 --drift 2>&1)
+        RESULT=$($DRIFTSHIELD s3 drift 2>&1)
         if echo "$RESULT" | grep -q "No drift detected"; then
             echo "[$TIMESTAMP] S3 Drift check complete - No drift detected"
         elif echo "$RESULT" | grep -q "drifts found"; then
@@ -109,14 +115,14 @@ case "$SCAN_TYPE" in
         
         # EC2 Security scan
         echo "[$TIMESTAMP] Running EC2 security scan..."
-        RESULT=$($PYTHON main.py --ec2 2>&1)
+        RESULT=$($DRIFTSHIELD ec2 2>&1)
         SECURE=$(echo "$RESULT" | grep -o "Secure:.*[0-9]" | grep -o "[0-9]*")
         AT_RISK=$(echo "$RESULT" | grep -o "At-risk:.*[0-9]" | grep -o "[0-9]*")
         echo "[$TIMESTAMP] EC2 Scan complete - Secure: ${SECURE:-0}, At-Risk: ${AT_RISK:-0}"
         
         # EC2 Drift detection
         echo "[$TIMESTAMP] Running EC2 drift detection..."
-        RESULT=$($PYTHON main.py --ec2 --drift 2>&1)
+        RESULT=$($DRIFTSHIELD ec2 drift 2>&1)
         if echo "$RESULT" | grep -q "No drift detected"; then
             echo "[$TIMESTAMP] EC2 Drift check complete - No drift detected"
         elif echo "$RESULT" | grep -q "drifts found"; then
