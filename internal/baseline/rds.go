@@ -52,9 +52,11 @@ func SaveRDSBaseline(bl *types.RDSBaseline) error {
 // CreateRDSBaseline snapshots the current RDS instance configurations.
 func CreateRDSBaseline(ctx context.Context) (*types.RDSBaseline, error) {
 	now := time.Now().Format(time.RFC3339)
+	region := config.GetRegion()
 	bl := &types.RDSBaseline{
 		CreatedAt: now,
 		UpdatedAt: now,
+		Region:    region,
 		Instances: make(map[string]types.RDSInstanceSnapshot),
 	}
 
@@ -68,6 +70,7 @@ func CreateRDSBaseline(ctx context.Context) (*types.RDSBaseline, error) {
 		return nil, fmt.Errorf("failed to save RDS baseline: %w", err)
 	}
 
+	fmt.Printf("Creating RDS baseline for region: %s\n", region)
 	fmt.Printf("\nRDS baseline saved to %s\n", config.RDSBaselineFile)
 	fmt.Printf("  %d instance(s) captured\n", len(bl.Instances))
 	return bl, nil
@@ -84,8 +87,18 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 		return nil, false, nil
 	}
 
+	currentRegion := config.GetRegion()
+	if bl.Region != "" && bl.Region != currentRegion {
+		return nil, false, fmt.Errorf(
+			"[ERROR] Region mismatch: baseline was captured in %q but current region is %q.\n"+
+				"  Re-run 'driftshield rds baseline' in region %q, or pass -r %s to use the baseline region",
+			bl.Region, currentRegion, currentRegion, bl.Region,
+		)
+	}
+
 	fmt.Printf("Comparing against RDS baseline...\n\n")
-	fmt.Printf("  Baseline created: %s\n\n", bl.CreatedAt)
+	fmt.Printf("  Baseline created: %s\n", bl.CreatedAt)
+	fmt.Printf("  Baseline region:  %s\n\n", bl.Region)
 
 	current, err := scanner.GetRDSSnapshot(ctx)
 	if err != nil {

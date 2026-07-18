@@ -44,9 +44,11 @@ func SaveVPCBaseline(bl *types.VPCBaseline) error {
 // CreateVPCBaseline snapshots the current VPC configurations.
 func CreateVPCBaseline(ctx context.Context) (*types.VPCBaseline, error) {
 	now := time.Now().Format(time.RFC3339)
+	region := config.GetRegion()
 	bl := &types.VPCBaseline{
 		CreatedAt: now,
 		UpdatedAt: now,
+		Region:    region,
 		VPCs:      make(map[string]types.VPCSnapshot),
 	}
 
@@ -60,6 +62,7 @@ func CreateVPCBaseline(ctx context.Context) (*types.VPCBaseline, error) {
 		return nil, fmt.Errorf("failed to save VPC baseline: %w", err)
 	}
 
+	fmt.Printf("Creating VPC baseline for region: %s\n", region)
 	fmt.Printf("\nVPC baseline saved to %s\n", config.VPCBaselineFile)
 	fmt.Printf("  %d VPC(s) captured\n", len(bl.VPCs))
 	return bl, nil
@@ -76,8 +79,18 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 		return nil, false, nil
 	}
 
+	currentRegion := config.GetRegion()
+	if bl.Region != "" && bl.Region != currentRegion {
+		return nil, false, fmt.Errorf(
+			"[ERROR] Region mismatch: baseline was captured in %q but current region is %q.\n"+
+				"  Re-run 'driftshield vpc baseline' in region %q, or pass -r %s to use the baseline region",
+			bl.Region, currentRegion, currentRegion, bl.Region,
+		)
+	}
+
 	fmt.Printf("Comparing against VPC baseline...\n\n")
-	fmt.Printf("  Baseline created: %s\n\n", bl.CreatedAt)
+	fmt.Printf("  Baseline created: %s\n", bl.CreatedAt)
+	fmt.Printf("  Baseline region:  %s\n\n", bl.Region)
 
 	current, err := scanner.GetVPCSnapshot(ctx)
 	if err != nil {

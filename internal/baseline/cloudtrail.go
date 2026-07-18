@@ -64,12 +64,15 @@ func CreateCloudTrailBaseline(ctx context.Context) (*types.CloudTrailBaseline, e
 	}
 
 	now := time.Now().Format(time.RFC3339)
+	region := config.GetRegion()
 	bl := &types.CloudTrailBaseline{
 		CreatedAt: now,
 		UpdatedAt: now,
+		Region:    region,
 		Trails:    make(map[string]types.CloudTrailTrailSnapshot),
 	}
 
+	fmt.Printf("Creating CloudTrail baseline for region: %s\n", region)
 	fmt.Printf("Found %d trail(s)\n\n", len(out.TrailList))
 
 	for _, trail := range out.TrailList {
@@ -122,13 +125,23 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 		return nil, false, nil
 	}
 
+	currentRegion := config.GetRegion()
+	if bl.Region != "" && bl.Region != currentRegion {
+		return nil, false, fmt.Errorf(
+			"[ERROR] Region mismatch: baseline was captured in %q but current region is %q.\n"+
+				"  Re-run 'driftshield cloudtrail baseline' in region %q, or pass -r %s to use the baseline region",
+			bl.Region, currentRegion, currentRegion, bl.Region,
+		)
+	}
+
 	client, err := newCloudTrailClient(ctx)
 	if err != nil {
 		return nil, true, err
 	}
 
 	fmt.Printf("Comparing against CloudTrail baseline...\n\n")
-	fmt.Printf("  Baseline created: %s\n\n", bl.CreatedAt)
+	fmt.Printf("  Baseline created: %s\n", bl.CreatedAt)
+	fmt.Printf("  Baseline region:  %s\n\n", bl.Region)
 
 	var drifts []types.CloudTrailDrift
 

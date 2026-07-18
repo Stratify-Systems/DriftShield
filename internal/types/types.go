@@ -185,6 +185,7 @@ type CloudTrailTrailSnapshot struct {
 type CloudTrailBaseline struct {
 	CreatedAt string                             `json:"created_at"`
 	UpdatedAt string                             `json:"updated_at"`
+	Region    string                             `json:"region"`
 	Trails    map[string]CloudTrailTrailSnapshot `json:"trails"`
 }
 
@@ -230,6 +231,7 @@ type VPCSnapshot struct {
 type VPCBaseline struct {
 	CreatedAt string                 `json:"created_at"`
 	UpdatedAt string                 `json:"updated_at"`
+	Region    string                 `json:"region"`
 	VPCs      map[string]VPCSnapshot `json:"vpcs"`
 }
 
@@ -272,6 +274,7 @@ type RDSInstanceSnapshot struct {
 type RDSBaseline struct {
 	CreatedAt string                         `json:"created_at"`
 	UpdatedAt string                         `json:"updated_at"`
+	Region    string                         `json:"region"`
 	Instances map[string]RDSInstanceSnapshot `json:"instances"`
 }
 
@@ -286,9 +289,10 @@ type RDSDrift struct {
 
 // S3Baseline represents the stored S3 baseline.
 type S3Baseline struct {
-	CreatedAt string                     `json:"created_at"`
-	UpdatedAt string                     `json:"updated_at"`
-	Buckets   map[string]S3BucketConfig  `json:"buckets"`
+	CreatedAt string                    `json:"created_at"`
+	UpdatedAt string                    `json:"updated_at"`
+	Region    string                    `json:"region"`
+	Buckets   map[string]S3BucketConfig `json:"buckets"`
 }
 
 // EC2Baseline represents the stored EC2 baseline.

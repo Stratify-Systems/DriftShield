@@ -110,6 +110,15 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 		return nil, nil
 	}
 
+	currentRegion := config.GetRegion()
+	if bl.Region != "" && bl.Region != currentRegion {
+		return nil, fmt.Errorf(
+			"[ERROR] Region mismatch: baseline was captured in %q but current region is %q.\n"+
+				"  Re-run 'driftshield ec2 baseline' in region %q, or pass -r %s to use the baseline region",
+			bl.Region, currentRegion, currentRegion, bl.Region,
+		)
+	}
+
 	client, err := newEC2Client(ctx)
 	if err != nil {
 		return nil, err
