@@ -34,10 +34,7 @@ Thumbs.db
 logs/*.log
 
 # Generated baseline files
-baseline.json
-ec2_baseline.json
-cloudtrail_baseline.json
-iam_baseline.json
+/baselines/*.json
 
 # Reports
 reports/*.html

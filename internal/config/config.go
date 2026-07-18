@@ -40,10 +40,10 @@ var SlackConfig = SlackSettings{
 
 // Baseline file paths.
 var (
-	BaselineFile          = "baseline.json"
-	EC2BaselineFile       = "ec2_baseline.json"
-	IAMBaselineFile       = "iam_baseline.json"
-	CloudTrailBaselineFile = "cloudtrail_baseline.json"
+	BaselineFile           = "baselines/s3_baseline.json"
+	EC2BaselineFile        = "baselines/ec2_baseline.json"
+	IAMBaselineFile        = "baselines/iam_baseline.json"
+	CloudTrailBaselineFile = "baselines/cloudtrail_baseline.json"
 )
 
 // GetRegion returns the effective AWS region.
