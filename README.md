@@ -1,6 +1,6 @@
 # DriftShield
 
-A cloud security tool that detects S3 and EC2 misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
+A cloud security tool that detects S3, EC2, IAM, and CloudTrail misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
 
 Built in Go for fast, single-binary distribution with zero runtime dependencies.
 
@@ -8,6 +8,8 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
 - **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)
+- **IAM Security Scanning**: Detects root account misconfigurations, missing MFA, admin policy abuse, and stale access keys
+- **CloudTrail Security Scanning**: Detects disabled logging, missing multi-region trails, and log validation issues
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
@@ -28,7 +30,9 @@ DriftShield/
 │   ├── display/display.go       # Banner and formatting
 │   ├── scanner/
 │   │   ├── s3.go                # S3 security scanning
-│   │   └── ec2.go               # EC2 security group scanning
+│   │   ├── ec2.go               # EC2 security group scanning
+│   │   ├── iam.go               # IAM security scanning
+│   │   └── cloudtrail.go        # CloudTrail security scanning
 │   ├── baseline/
 │   │   ├── s3.go                # S3 baseline management
 │   │   └── ec2.go               # EC2 baseline management
@@ -95,9 +99,19 @@ driftshield ec2 fix               # Remove risky inbound rules
 driftshield ec2 -r us-east-1      # Scan specific region
 ```
 
+### IAM Commands
+```bash
+driftshield iam                   # Run IAM security scan
+```
+
+### CloudTrail Commands
+```bash
+driftshield cloudtrail            # Run CloudTrail security scan
+```
+
 ### Other Commands
 ```bash
-driftshield all                   # Run both S3 and EC2 scans
+driftshield all                   # Run S3, EC2, IAM, and CloudTrail scans
 driftshield --help                # Show help message
 driftshield --version             # Show version
 driftshield completion bash       # Generate bash completion script
@@ -109,6 +123,8 @@ You can also run directly with `go run`:
 ```bash
 go run ./cmd/driftshield s3
 go run ./cmd/driftshield ec2 drift
+go run ./cmd/driftshield iam
+go run ./cmd/driftshield cloudtrail
 go run ./cmd/driftshield all
 ```
 
@@ -119,6 +135,37 @@ go run ./cmd/driftshield all
 | `--region` | `-r` | Set AWS region (e.g., us-east-1) |
 | `--help` | `-h` | Show help |
 | `--version` | `-v` | Show version |
+
+## IAM Security Checks
+
+The IAM scanner detects these issues:
+
+| Check | Severity |
+|-------|----------|
+| Root account MFA disabled | CRITICAL |
+| Root account has active access keys | CRITICAL |
+| IAM user with console access but no MFA | HIGH |
+| No account password policy set | HIGH |
+| User has `AdministratorAccess` policy attached | HIGH |
+| User has inline policy with wildcard `Action: *` | HIGH |
+| Minimum password length below 14 characters | MEDIUM |
+| Password complexity not fully enforced | MEDIUM |
+| Passwords never expire | MEDIUM |
+| Access key unused for 90+ days | MEDIUM |
+| Access key that was never used | MEDIUM |
+| Password reuse prevention not configured | LOW |
+
+## CloudTrail Security Checks
+
+The CloudTrail scanner detects these issues:
+
+| Check | Severity |
+|-------|----------|
+| No trails configured | CRITICAL |
+| Trail exists but logging is disabled | CRITICAL |
+| No multi-region trail configured | HIGH |
+| Log file validation disabled | MEDIUM |
+| Only write events logged (read events missed) | LOW |
 
 ## EC2 Security Checks
 
@@ -213,6 +260,27 @@ tail -f logs/cron.log
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSecurityGroupRules",
                 "ec2:RevokeSecurityGroupIngress"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetAccountSummary",
+                "iam:ListUsers",
+                "iam:GetLoginProfile",
+                "iam:ListMFADevices",
+                "iam:ListAttachedUserPolicies",
+                "iam:ListUserPolicies",
+                "iam:GetUserPolicy",
+                "iam:ListAccessKeys",
+                "iam:GetAccessKeyLastUsed",
+                "iam:GenerateCredentialReport",
+                "iam:GetCredentialReport",
+                "iam:GetAccountPasswordPolicy",
+                "cloudtrail:DescribeTrails",
+                "cloudtrail:GetTrailStatus",
+                "cloudtrail:GetEventSelectors"
             ],
             "Resource": "*"
         },

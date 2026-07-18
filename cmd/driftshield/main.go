@@ -16,6 +16,7 @@ import (
 	"github.com/SuryaTK2007/DriftShield/internal/config"
 	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"github.com/SuryaTK2007/DriftShield/internal/scanner"
+	"github.com/SuryaTK2007/DriftShield/internal/types"
 )
 
 func main() {
@@ -63,14 +64,28 @@ func init() {
 		&cobra.Command{Use: "fix", Short: "Fix risky EC2 security group rules", Run: func(cmd *cobra.Command, args []string) { runEC2Fix() }},
 	)
 
+	// IAM command
+	iamCmd := &cobra.Command{
+		Use:   "iam",
+		Short: "Run IAM security scan",
+		Run:   func(cmd *cobra.Command, args []string) { runIAMScan() },
+	}
+
+	// CloudTrail command
+	cloudtrailCmd := &cobra.Command{
+		Use:   "cloudtrail",
+		Short: "Run CloudTrail security scan",
+		Run:   func(cmd *cobra.Command, args []string) { runCloudTrailScan() },
+	}
+
 	// All command
 	allCmd := &cobra.Command{
 		Use:   "all",
-		Short: "Run both S3 and EC2 scans",
+		Short: "Run S3, EC2, IAM, and CloudTrail scans",
 		Run:   func(cmd *cobra.Command, args []string) { runAllScans() },
 	}
 
-	rootCmd.AddCommand(s3Cmd, ec2Cmd, allCmd)
+	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, allCmd)
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -319,6 +334,79 @@ func runEC2Fix() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// IAM handlers
+// ──────────────────────────────────────────────────────────────
+
+func runIAMScan() {
+	ctx := context.Background()
+	display.PrintBanner("IAM SECURITY SCAN")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	results, err := scanner.ScanIAM(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	critical, high, medium, low := countIAMSeverities(results.Findings)
+	printBox("IAM SCAN RESULTS", []string{
+		fmt.Sprintf("Total findings:  %d", len(results.Findings)),
+		fmt.Sprintf("Critical: %d  High: %d  Medium: %d  Low: %d", critical, high, medium, low),
+	})
+
+	if len(results.Findings) > 0 {
+		fmt.Println("\n[!] ACTION REQUIRED - IAM issues detected")
+		alerts.SendIAMAlerts(ctx, results.Findings)
+	} else {
+		fmt.Println("\n[+] No IAM issues found.")
+	}
+}
+
+func countIAMSeverities(findings []types.IAMFinding) (critical, high, medium, low int) {
+	for _, f := range findings {
+		switch f.Severity {
+		case "CRITICAL":
+			critical++
+		case "HIGH":
+			high++
+		case "MEDIUM":
+			medium++
+		case "LOW":
+			low++
+		}
+	}
+	return
+}
+
+// ──────────────────────────────────────────────────────────────
+// CloudTrail handlers
+// ──────────────────────────────────────────────────────────────
+
+func runCloudTrailScan() {
+	ctx := context.Background()
+	display.PrintBanner("CLOUDTRAIL SECURITY SCAN")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	results, err := scanner.ScanCloudTrail(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	printBox("CLOUDTRAIL SCAN RESULTS", []string{
+		fmt.Sprintf("Trails scanned:  %d", len(results.Trails)),
+		fmt.Sprintf("Findings:        %d", len(results.Findings)),
+	})
+
+	if len(results.Findings) > 0 {
+		fmt.Println("\n[!] ACTION REQUIRED - CloudTrail issues detected")
+		alerts.SendCloudTrailAlerts(ctx, results.Findings)
+	} else {
+		fmt.Println("\n[+] CloudTrail configuration looks secure.")
+	}
+}
+
+// ──────────────────────────────────────────────────────────────
 // All scans
 // ──────────────────────────────────────────────────────────────
 
@@ -342,6 +430,22 @@ func runAllScans() {
 	fmt.Println()
 	ec2Results, ec2Err := scanner.ScanSecurityGroups(ctx)
 
+	// IAM
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("  IAM SECURITY SCAN")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+	iamResults, iamErr := scanner.ScanIAM(ctx)
+
+	// CloudTrail
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("  CLOUDTRAIL SECURITY SCAN")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+	ctResults, ctErr := scanner.ScanCloudTrail(ctx)
+
 	s3Secure, s3Risk := 0, 0
 	if s3Err == nil {
 		s3Secure = len(s3Results.Secure)
@@ -352,15 +456,27 @@ func runAllScans() {
 		ec2Secure = len(ec2Results.Secure)
 		ec2Risk = len(ec2Results.AtRisk)
 	}
+	iamFindings := 0
+	if iamErr == nil {
+		iamFindings = len(iamResults.Findings)
+	}
+	ctFindings := 0
+	if ctErr == nil {
+		ctFindings = len(ctResults.Findings)
+	}
 
 	printBox("FULL SCAN RESULTS", []string{
 		"S3 Buckets:",
 		fmt.Sprintf("  Secure: %d, At-risk: %d", s3Secure, s3Risk),
 		"EC2 Security Groups:",
 		fmt.Sprintf("  Secure: %d, At-risk: %d", ec2Secure, ec2Risk),
+		"IAM:",
+		fmt.Sprintf("  Findings: %d", iamFindings),
+		"CloudTrail:",
+		fmt.Sprintf("  Findings: %d", ctFindings),
 	})
 
-	total := s3Risk + ec2Risk
+	total := s3Risk + ec2Risk + iamFindings + ctFindings
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
 	} else {

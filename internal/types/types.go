@@ -95,6 +95,43 @@ type RemediationItem struct {
 	DryRun        bool   `json:"dry_run,omitempty"`
 }
 
+// IAMFinding represents a single IAM security finding.
+type IAMFinding struct {
+	Type     string `json:"type"`
+	Severity string `json:"severity"`
+	Resource string `json:"resource"`
+	Message  string `json:"message"`
+}
+
+// IAMScanResults holds results from an IAM security scan.
+type IAMScanResults struct {
+	Findings []IAMFinding
+}
+
+// CloudTrailFinding represents a single CloudTrail security finding.
+type CloudTrailFinding struct {
+	Type      string `json:"type"`
+	Severity  string `json:"severity"`
+	TrailName string `json:"trail_name"`
+	Message   string `json:"message"`
+}
+
+// TrailSummary holds key attributes of a CloudTrail trail.
+type TrailSummary struct {
+	Name              string `json:"name"`
+	IsLogging         bool   `json:"is_logging"`
+	IsMultiRegion     bool   `json:"is_multi_region"`
+	LogValidation     bool   `json:"log_validation"`
+	S3Bucket          string `json:"s3_bucket"`
+	HasCustomEventSel bool   `json:"has_custom_event_selectors"`
+}
+
+// CloudTrailScanResults holds results from a CloudTrail security scan.
+type CloudTrailScanResults struct {
+	Trails   []TrailSummary
+	Findings []CloudTrailFinding
+}
+
 // S3Baseline represents the stored S3 baseline.
 type S3Baseline struct {
 	CreatedAt string                     `json:"created_at"`

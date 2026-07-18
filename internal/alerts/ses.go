@@ -175,6 +175,66 @@ func sendEC2SESAlert(ctx context.Context, atRisk []string, details map[string]*t
 	}
 }
 
+// SendIAMAlerts sends email alerts for IAM security findings.
+func SendIAMAlerts(ctx context.Context, findings []types.IAMFinding) {
+	if len(findings) == 0 || !config.AWSSESConfig.Enabled {
+		return
+	}
+	fmt.Printf("\n[ALERT] Sending IAM alerts for %d finding(s)...\n", len(findings))
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	var rows, textList strings.Builder
+	for _, f := range findings {
+		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
+			f.Severity, f.Resource, f.Message)
+		fmt.Fprintf(&textList, "  [%s] %s: %s\n", f.Severity, f.Resource, f.Message)
+	}
+
+	html := fmt.Sprintf(`<html><body>
+<h2>DriftShield IAM Security Alert</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>Findings (%d):</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+
+	text := fmt.Sprintf("DriftShield IAM Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
+
+	if err := sendEmail(ctx, fmt.Sprintf("[IAM ALERT] DriftShield: %d IAM Security Issue(s)", len(findings)), text, html); err != nil {
+		fmt.Printf("[EMAIL] IAM alert failed: %v\n", err)
+	}
+}
+
+// SendCloudTrailAlerts sends email alerts for CloudTrail security findings.
+func SendCloudTrailAlerts(ctx context.Context, findings []types.CloudTrailFinding) {
+	if len(findings) == 0 || !config.AWSSESConfig.Enabled {
+		return
+	}
+	fmt.Printf("\n[ALERT] Sending CloudTrail alerts for %d finding(s)...\n", len(findings))
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	var rows, textList strings.Builder
+	for _, f := range findings {
+		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
+			f.Severity, f.TrailName, f.Message)
+		fmt.Fprintf(&textList, "  [%s] Trail '%s': %s\n", f.Severity, f.TrailName, f.Message)
+	}
+
+	html := fmt.Sprintf(`<html><body>
+<h2>DriftShield CloudTrail Security Alert</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>Findings (%d):</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Trail</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+
+	text := fmt.Sprintf("DriftShield CloudTrail Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
+
+	if err := sendEmail(ctx, fmt.Sprintf("[CLOUDTRAIL ALERT] DriftShield: %d CloudTrail Issue(s)", len(findings)), text, html); err != nil {
+		fmt.Printf("[EMAIL] CloudTrail alert failed: %v\n", err)
+	}
+}
+
 // SendEC2DriftAlerts sends email alerts for EC2 security group drift.
 func SendEC2DriftAlerts(ctx context.Context, drifts []types.EC2Drift) {
 	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {
