@@ -55,6 +55,7 @@ func SendS3Alerts(ctx context.Context, atRisk []string) {
 	fmt.Printf("\n[ALERT] Sending alerts for %d at-risk bucket(s)...\n\n", len(atRisk))
 	SendS3SESAlert(ctx, atRisk)
 	SendS3SlackAlert(atRisk)
+	SNSPublishS3Alerts(ctx, atRisk)
 }
 
 // SendS3SESAlert sends an email alert for at-risk S3 buckets.
@@ -123,6 +124,7 @@ func SendS3DriftAlerts(ctx context.Context, drifts []types.S3Drift) {
 	if err := sendEmail(ctx, fmt.Sprintf("[DRIFT] DriftShield: %d Configuration Change(s) Detected", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] Drift alert failed: %v\n", err)
 	}
+	SNSPublishS3DriftAlerts(ctx, drifts)
 }
 
 // SendEC2Alerts sends alerts for at-risk EC2 security groups via all channels.
@@ -137,6 +139,7 @@ func SendEC2Alerts(ctx context.Context, atRisk []string, details map[string]*typ
 	if config.SlackConfig.Enabled {
 		sendEC2SlackAlert(atRisk, details)
 	}
+	SNSPublishEC2Alerts(ctx, atRisk, details)
 }
 
 func sendEC2SESAlert(ctx context.Context, atRisk []string, details map[string]*types.SGDetails) {
@@ -203,6 +206,7 @@ func SendIAMAlerts(ctx context.Context, findings []types.IAMFinding) {
 	if err := sendEmail(ctx, fmt.Sprintf("[IAM ALERT] DriftShield: %d IAM Security Issue(s)", len(findings)), text, html); err != nil {
 		fmt.Printf("[EMAIL] IAM alert failed: %v\n", err)
 	}
+	SNSPublishIAMAlerts(ctx, findings)
 }
 
 // SendCloudTrailAlerts sends email alerts for CloudTrail security findings.
@@ -233,6 +237,7 @@ func SendCloudTrailAlerts(ctx context.Context, findings []types.CloudTrailFindin
 	if err := sendEmail(ctx, fmt.Sprintf("[CLOUDTRAIL ALERT] DriftShield: %d CloudTrail Issue(s)", len(findings)), text, html); err != nil {
 		fmt.Printf("[EMAIL] CloudTrail alert failed: %v\n", err)
 	}
+	SNSPublishCloudTrailAlerts(ctx, findings)
 }
 
 // SendIAMDriftAlerts sends email alerts for IAM configuration drift.
@@ -263,6 +268,7 @@ func SendIAMDriftAlerts(ctx context.Context, drifts []types.IAMDrift) {
 	if err := sendEmail(ctx, fmt.Sprintf("[IAM DRIFT] DriftShield: %d IAM Configuration Change(s)", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] IAM drift alert failed: %v\n", err)
 	}
+	SNSPublishIAMDriftAlerts(ctx, drifts)
 }
 
 // SendCloudTrailDriftAlerts sends email alerts for CloudTrail configuration drift.
@@ -293,6 +299,7 @@ func SendCloudTrailDriftAlerts(ctx context.Context, drifts []types.CloudTrailDri
 	if err := sendEmail(ctx, fmt.Sprintf("[CLOUDTRAIL DRIFT] DriftShield: %d Trail Configuration Change(s)", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] CloudTrail drift alert failed: %v\n", err)
 	}
+	SNSPublishCloudTrailDriftAlerts(ctx, drifts)
 }
 
 // SendVPCAlerts sends email alerts for VPC security findings.
@@ -323,6 +330,7 @@ func SendVPCAlerts(ctx context.Context, findings []types.VPCFinding) {
 	if err := sendEmail(ctx, fmt.Sprintf("[VPC ALERT] DriftShield: %d VPC Security Issue(s)", len(findings)), text, html); err != nil {
 		fmt.Printf("[EMAIL] VPC alert failed: %v\n", err)
 	}
+	SNSPublishVPCAlerts(ctx, findings)
 }
 
 // SendVPCDriftAlerts sends email alerts for VPC configuration drift.
@@ -353,6 +361,7 @@ func SendVPCDriftAlerts(ctx context.Context, drifts []types.VPCDrift) {
 	if err := sendEmail(ctx, fmt.Sprintf("[VPC DRIFT] DriftShield: %d VPC Configuration Change(s)", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] VPC drift alert failed: %v\n", err)
 	}
+	SNSPublishVPCDriftAlerts(ctx, drifts)
 }
 
 // SendRDSAlerts sends email alerts for RDS security findings.
@@ -383,6 +392,7 @@ func SendRDSAlerts(ctx context.Context, findings []types.RDSFinding) {
 	if err := sendEmail(ctx, fmt.Sprintf("[RDS ALERT] DriftShield: %d RDS Security Issue(s)", len(findings)), text, html); err != nil {
 		fmt.Printf("[EMAIL] RDS alert failed: %v\n", err)
 	}
+	SNSPublishRDSAlerts(ctx, findings)
 }
 
 // SendRDSDriftAlerts sends email alerts for RDS configuration drift.
@@ -413,6 +423,7 @@ func SendRDSDriftAlerts(ctx context.Context, drifts []types.RDSDrift) {
 	if err := sendEmail(ctx, fmt.Sprintf("[RDS DRIFT] DriftShield: %d RDS Configuration Change(s)", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] RDS drift alert failed: %v\n", err)
 	}
+	SNSPublishRDSDriftAlerts(ctx, drifts)
 }
 
 // SendEC2DriftAlerts sends email alerts for EC2 security group drift.
@@ -473,4 +484,5 @@ func SendEC2DriftAlerts(ctx context.Context, drifts []types.EC2Drift) {
 	if err := sendEmail(ctx, fmt.Sprintf("[EC2 DRIFT] DriftShield: %d Security Group Change(s) Detected", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] EC2 drift alert failed: %v\n", err)
 	}
+	SNSPublishEC2DriftAlerts(ctx, drifts)
 }

@@ -25,7 +25,7 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 | `internal/config` | Static configuration (region, SES, Slack, baseline paths) |
 | `internal/scanner` | Live AWS scanning for S3, EC2, IAM, CloudTrail, VPC, and RDS risks |
 | `internal/baseline` | Snapshot, compare, and remediate configuration drift |
-| `internal/alerts` | Send findings via AWS SES email and Slack webhook |
+| `internal/alerts` | Send findings via AWS SES email, SNS, and Slack webhook |
 | `internal/display` | Banner printing and port description helpers |
 
 ---
@@ -47,7 +47,7 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
   - `BlockPublicPolicy`
   - `RestrictPublicBuckets`
 - If any flag is `false`, or the configuration doesn't exist at all (`NoSuchPublicAccessBlockConfiguration`), the bucket is marked **AT RISK**
-- At-risk buckets trigger alerts via SES and Slack
+- At-risk buckets trigger alerts via SES, SNS, and Slack
 
 ---
 
@@ -342,13 +342,45 @@ Each baseline command fetches the current live state from AWS and serializes it 
 
 ### 8. Alert System
 
-Alerts are dispatched after every scan or drift check if issues are found.
+Alerts are dispatched after every scan or drift check if issues are found. All three channels (SES, SNS, Slack) are called from the same `Send*` functions — each channel checks its own `Enabled` flag independently.
 
 #### AWS SES Email (`internal/alerts/ses.go`)
 
 - Creates an SES client using the region from `config.AWSSESConfig.Region`
 - Sends both HTML and plain-text versions via `ses:SendEmail`
 - Controlled by `config.AWSSESConfig.Enabled`
+
+#### AWS SNS (`internal/alerts/sns.go`)
+
+- Single `publishSNS(ctx, service, alertType, severity, subject, message)` helper
+- Resolves topic ARN: checks `config.SNSConfig.ServiceTopics[service]` first, falls back to `config.SNSConfig.DefaultTopicARN`
+- Attaches 3 message attributes to every publish enabling SNS filter policies:
+
+| Attribute | Example values |
+|---|---|
+| `service` | `s3`, `ec2`, `iam`, `cloudtrail`, `vpc`, `rds` |
+| `alertType` | `SCAN`, `DRIFT` |
+| `severity` | `CRITICAL`, `HIGH`, `MEDIUM` |
+
+- Controlled by `config.SNSConfig.Enabled`
+- 12 public functions — one scan + one drift per service
+
+| Function | Triggered by |
+|---|---|
+| `SNSPublishS3Alerts` | `driftshield s3` |
+| `SNSPublishS3DriftAlerts` | `driftshield s3 drift` |
+| `SNSPublishEC2Alerts` | `driftshield ec2` |
+| `SNSPublishEC2DriftAlerts` | `driftshield ec2 drift` |
+| `SNSPublishIAMAlerts` | `driftshield iam` |
+| `SNSPublishIAMDriftAlerts` | `driftshield iam drift` |
+| `SNSPublishCloudTrailAlerts` | `driftshield cloudtrail` |
+| `SNSPublishCloudTrailDriftAlerts` | `driftshield cloudtrail drift` |
+| `SNSPublishVPCAlerts` | `driftshield vpc` |
+| `SNSPublishVPCDriftAlerts` | `driftshield vpc drift` |
+| `SNSPublishRDSAlerts` | `driftshield rds` |
+| `SNSPublishRDSDriftAlerts` | `driftshield rds drift` |
+
+#### SES alert functions
 
 | Function | Triggered by |
 |---|---|
@@ -382,6 +414,7 @@ A static Go file — no environment variables or external config files. Edit it 
 |---|---|
 | `AWSRegion` | Default AWS region (overridable with `--region` flag) |
 | `AWSSESConfig` | SES sender email, recipient email, region, enabled toggle |
+| `SNSConfig` | Default topic ARN, per-service topic ARNs map, region, enabled toggle |
 | `SlackConfig` | Slack webhook URL, enabled toggle |
 | `BaselineFile` | `baselines/s3_baseline.json` |
 | `EC2BaselineFile` | `baselines/ec2_baseline.json` |
@@ -414,7 +447,7 @@ Example crontab entry to run every hour:
 ListBuckets
   → for each bucket: GetPublicAccessBlock
   → classify as SECURE or AT RISK
-  → if AT RISK: SendS3Alerts → SES email + Slack
+  → if AT RISK: SendS3Alerts → SES email + SNS publish + Slack
 ```
 
 ### `driftshield iam`
@@ -425,7 +458,7 @@ ListUsers → for each user:
   GetLoginProfile + ListMFADevices + ListAttachedUserPolicies
   ListUserPolicies + GetUserPolicy + ListAccessKeys + GetAccessKeyLastUsed
   → []IAMFinding
-→ SendIAMAlerts → SES email
+→ SendIAMAlerts → SES email + SNS publish
 ```
 
 ### `driftshield rds drift`
@@ -433,7 +466,7 @@ ListUsers → for each user:
 LoadRDSBaseline() → reads baselines/rds_baseline.json
 GetRDSSnapshot() → DescribeDBInstances → map[instanceID]RDSInstanceSnapshot
 CompareRDSWithBaseline() → diffs field by field → []RDSDrift
-→ SendRDSDriftAlerts() → SES email
+→ SendRDSDriftAlerts() → SES email + SNS publish
 ```
 
 ### `driftshield vpc drift`

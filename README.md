@@ -15,6 +15,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
+- **SNS Alerts**: Publishes to AWS SNS with message attributes for filter-policy-based routing
 - **Slack Integration**: Optional Slack webhook alerts
 - **Scheduled Scanning**: Automated hourly scans via cron
 - **Shell Autocompletion**: Built-in completion for bash, zsh, fish, and PowerShell
@@ -46,6 +47,7 @@ DriftShield/
 │   │   └── rds.go               # RDS baseline management
 │   └── alerts/
 │       ├── ses.go               # AWS SES email alerts
+│       ├── sns.go               # AWS SNS alerts
 │       └── slack.go             # Slack webhook alerts
 ├── baselines/
 │   ├── s3_baseline.json         # S3 baseline snapshot
@@ -361,6 +363,13 @@ tail -f logs/cron.log
         {
             "Effect": "Allow",
             "Action": [
+                "sns:Publish"
+            ],
+            "Resource": "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-alerts"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
                 "ses:SendEmail",
                 "ses:SendRawEmail"
             ],
@@ -375,9 +384,64 @@ tail -f logs/cron.log
 Edit `internal/config/config.go` to configure:
 
 - **AWSSESConfig**: Email alert settings (sender, recipient, region)
+- **SNSConfig**: SNS topic ARN, region, enabled toggle, optional per-service topic ARNs
 - **SlackConfig**: Slack webhook settings
 - **BaselineFile / EC2BaselineFile / IAMBaselineFile / CloudTrailBaselineFile / VPCBaselineFile / RDSBaselineFile**: Baseline storage locations (all under `baselines/`)
 - **AWSRegion**: Default AWS region
+
+## SNS Alerts Setup
+
+### 1. Create the SNS topic
+```bash
+aws sns create-topic --name driftshield-alerts --region ap-south-1
+```
+
+### 2. Subscribe your email
+```bash
+aws sns subscribe \
+  --topic-arn arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-alerts \
+  --protocol email \
+  --notification-endpoint your@email.com \
+  --region ap-south-1
+```
+Check your inbox and click the confirmation link.
+
+### 3. Enable SNS in config
+Edit `internal/config/config.go`:
+```go
+var SNSConfig = SNSSettings{
+    Enabled:         true,
+    Region:          "ap-south-1",
+    DefaultTopicARN: "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-alerts",
+    ServiceTopics:   map[string]string{},
+}
+```
+
+### 4. Optional — per-service topics
+Route specific services to dedicated topics:
+```go
+ServiceTopics: map[string]string{
+    "rds": "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-rds-alerts",
+    "iam": "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-iam-alerts",
+},
+```
+
+### 5. Optional — SNS filter policies
+Every SNS message includes these attributes for subscriber-side filtering:
+
+| Attribute | Values |
+|-----------|--------|
+| `service` | `s3`, `ec2`, `iam`, `cloudtrail`, `vpc`, `rds` |
+| `alertType` | `SCAN`, `DRIFT` |
+| `severity` | `CRITICAL`, `HIGH`, `MEDIUM` |
+
+Example filter policy (only CRITICAL scan alerts):
+```json
+{
+  "alertType": ["SCAN"],
+  "severity": ["CRITICAL"]
+}
+```
 
 ## Build Targets
 
