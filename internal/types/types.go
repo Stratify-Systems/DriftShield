@@ -291,7 +291,6 @@ type RDSDrift struct {
 type S3Baseline struct {
 	CreatedAt string                    `json:"created_at"`
 	UpdatedAt string                    `json:"updated_at"`
-	Region    string                    `json:"region"`
 	Buckets   map[string]S3BucketConfig `json:"buckets"`
 }
 

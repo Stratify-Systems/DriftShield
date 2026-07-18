@@ -19,7 +19,7 @@ import (
 )
 
 func newS3Client(ctx context.Context) (*s3.Client, error) {
-	cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithRegion(config.GetRegion()))
+	cfg, err := awscfg.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -130,15 +130,13 @@ func CreateS3Baseline(ctx context.Context) (*types.S3Baseline, error) {
 	}
 
 	now := time.Now().Format(time.RFC3339)
-	region := config.GetRegion()
 	bl := &types.S3Baseline{
 		CreatedAt: now,
 		UpdatedAt: now,
-		Region:    region,
 		Buckets:   make(map[string]types.S3BucketConfig),
 	}
 
-	fmt.Printf("Creating S3 baseline for region: %s\n\n", region)
+	fmt.Println("Creating baseline from current configurations...\n")
 	for _, b := range out.Buckets {
 		name := aws.ToString(b.Name)
 		fmt.Printf("  Capturing: %s\n", name)
@@ -165,15 +163,6 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, error) {
 		return nil, nil
 	}
 
-	currentRegion := config.GetRegion()
-	if bl.Region != "" && bl.Region != currentRegion {
-		return nil, fmt.Errorf(
-			"[ERROR] Region mismatch: baseline was captured in %q but current region is %q.\n"+
-				"  Re-run 'driftshield s3 baseline' in region %q, or pass -r %s to use the baseline region",
-			bl.Region, currentRegion, currentRegion, bl.Region,
-		)
-	}
-
 	client, err := newS3Client(ctx)
 	if err != nil {
 		return nil, err
@@ -184,9 +173,8 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, error) {
 		return nil, fmt.Errorf("failed to list buckets: %w", err)
 	}
 
-	fmt.Println("Comparing against S3 baseline...\n")
-	fmt.Printf("  Baseline created: %s\n", bl.CreatedAt)
-	fmt.Printf("  Baseline region:  %s\n\n", bl.Region)
+	fmt.Println("Comparing against baseline...\n")
+	fmt.Printf("  Baseline created: %s\n\n", bl.CreatedAt)
 
 	drifts := make([]types.S3Drift, 0)
 	driftedBuckets := map[string]bool{}
