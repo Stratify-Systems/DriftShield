@@ -169,9 +169,9 @@ func checkUsersWithoutMFA(ctx context.Context, client *iam.Client, res *types.IA
 					Resource: username,
 					Message:  fmt.Sprintf("User '%s' has console access but no MFA device", username),
 				})
-				fmt.Printf("[HIGH]     User '%s' has no MFA\\n", username)
+				fmt.Printf("[HIGH]     User '%s' has no MFA\n", username)
 			} else {
-				fmt.Printf("[SECURE]   User '%s' has MFA enabled\\n", username)
+				fmt.Printf("[SECURE]   User '%s' has MFA enabled\n", username)
 			}
 		}
 	}
@@ -201,7 +201,7 @@ func checkAdminPolicies(ctx context.Context, client *iam.Client, res *types.IAMS
 						Resource: username,
 						Message:  fmt.Sprintf("User '%s' has AdministratorAccess policy attached", username),
 					})
-					fmt.Printf("[HIGH]     User '%s' has AdministratorAccess\\n", username)
+					fmt.Printf("[HIGH]     User '%s' has AdministratorAccess\n", username)
 				}
 			}
 
@@ -227,7 +227,7 @@ func checkAdminPolicies(ctx context.Context, client *iam.Client, res *types.IAMS
 						Resource: username,
 						Message:  fmt.Sprintf("User '%s' has inline policy '%s' with wildcard Action (*)", username, pName),
 					})
-					fmt.Printf("[HIGH]     User '%s' inline policy '%s' uses Action:*\\n", username, pName)
+					fmt.Printf("[HIGH]     User '%s' inline policy '%s' uses Action:*\n", username, pName)
 				}
 			}
 		}
@@ -267,7 +267,7 @@ func checkStaleAccessKeys(ctx context.Context, client *iam.Client, res *types.IA
 						Resource: username,
 						Message:  fmt.Sprintf("User '%s' has access key '%s' that was never used", username, keyID),
 					})
-					fmt.Printf("[MEDIUM]   User '%s' key '%s' never used\\n", username, keyID)
+					fmt.Printf("[MEDIUM]   User '%s' key '%s' never used\n", username, keyID)
 					continue
 				}
 				daysSince := int(time.Since(*lu.LastUsedDate).Hours() / 24)
@@ -277,9 +277,9 @@ func checkStaleAccessKeys(ctx context.Context, client *iam.Client, res *types.IA
 						Resource: username,
 						Message:  fmt.Sprintf("User '%s' has access key '%s' unused for %d days", username, keyID, daysSince),
 					})
-					fmt.Printf("[MEDIUM]   User '%s' key '%s' unused for %d days\\n", username, keyID, daysSince)
+					fmt.Printf("[MEDIUM]   User '%s' key '%s' unused for %d days\n", username, keyID, daysSince)
 				} else {
-					fmt.Printf("[SECURE]   User '%s' key '%s' used %d days ago\\n", username, keyID, daysSince)
+					fmt.Printf("[SECURE]   User '%s' key '%s' used %d days ago\n", username, keyID, daysSince)
 				}
 			}
 		}

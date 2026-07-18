@@ -2,10 +2,8 @@ package baseline
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -94,27 +92,12 @@ func GetBucketConfig(ctx context.Context, client *s3.Client, bucketName string) 
 
 // LoadS3Baseline loads the S3 baseline from disk.
 func LoadS3Baseline() (*types.S3Baseline, error) {
-	if _, err := os.Stat(config.BaselineFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(config.BaselineFile)
-	if err != nil {
-		return nil, err
-	}
-	var bl types.S3Baseline
-	if err := json.Unmarshal(data, &bl); err != nil {
-		return nil, err
-	}
-	return &bl, nil
+	return LoadBaseline[types.S3Baseline](config.BaselineFile)
 }
 
 // SaveS3Baseline saves the S3 baseline to disk.
 func SaveS3Baseline(bl *types.S3Baseline) error {
-	data, err := json.MarshalIndent(bl, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(config.BaselineFile, data, 0644)
+	return SaveBaseline(config.BaselineFile, bl)
 }
 
 // CreateS3Baseline creates a baseline from current S3 configurations.
@@ -136,7 +119,7 @@ func CreateS3Baseline(ctx context.Context) (*types.S3Baseline, error) {
 		Buckets:   make(map[string]types.S3BucketConfig),
 	}
 
-	fmt.Println("Creating baseline from current configurations...\n")
+	fmt.Println("Creating baseline from current configurations...")
 	for _, b := range out.Buckets {
 		name := aws.ToString(b.Name)
 		fmt.Printf("  Capturing: %s\n", name)
@@ -153,27 +136,27 @@ func CreateS3Baseline(ctx context.Context) (*types.S3Baseline, error) {
 }
 
 // CompareS3WithBaseline compares current configs with baseline.
-func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, error) {
+func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 	bl, err := LoadS3Baseline()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if bl == nil {
 		fmt.Println("[WARNING] No baseline found. Run with 'baseline' command first.")
-		return nil, nil
+		return nil, false, nil
 	}
 
 	client, err := newS3Client(ctx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	out, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list buckets: %w", err)
+		return nil, false, fmt.Errorf("failed to list buckets: %w", err)
 	}
 
-	fmt.Println("Comparing against baseline...\n")
+	fmt.Println("Comparing against baseline...")
 	fmt.Printf("  Baseline created: %s\n\n", bl.CreatedAt)
 
 	drifts := make([]types.S3Drift, 0)
@@ -260,7 +243,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, error) {
 		}
 	}
 
-	return drifts, nil
+	return drifts, true, nil
 }
 
 // RemediateS3Drift fixes drifted S3 configurations back to baseline.
@@ -281,7 +264,7 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 	}
 
 	res := &types.RemediationResults{}
-	fmt.Println("Starting remediation...\n")
+	fmt.Println("Starting remediation...")
 
 	for _, drift := range drifts {
 		bucket := drift.Bucket

@@ -2,9 +2,7 @@ package baseline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,27 +24,12 @@ func newCloudTrailClient(ctx context.Context) (*cloudtrail.Client, error) {
 
 // LoadCloudTrailBaseline loads the CloudTrail baseline from disk.
 func LoadCloudTrailBaseline() (*types.CloudTrailBaseline, error) {
-	if _, err := os.Stat(config.CloudTrailBaselineFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(config.CloudTrailBaselineFile)
-	if err != nil {
-		return nil, err
-	}
-	var bl types.CloudTrailBaseline
-	if err := json.Unmarshal(data, &bl); err != nil {
-		return nil, err
-	}
-	return &bl, nil
+	return LoadBaseline[types.CloudTrailBaseline](config.CloudTrailBaselineFile)
 }
 
 // SaveCloudTrailBaseline saves the CloudTrail baseline to disk.
 func SaveCloudTrailBaseline(bl *types.CloudTrailBaseline) error {
-	data, err := json.MarshalIndent(bl, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(config.CloudTrailBaselineFile, data, 0644)
+	return SaveBaseline(config.CloudTrailBaselineFile, bl)
 }
 
 // CreateCloudTrailBaseline snapshots the current CloudTrail trail configurations.
@@ -309,7 +292,7 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 				continue
 			}
 			_, fErr := client.UpdateTrail(ctx, &cloudtrail.UpdateTrailInput{
-				Name:                 aws.String(drift.TrailName),
+				Name:                    aws.String(drift.TrailName),
 				EnableLogFileValidation: aws.Bool(blTrail.LogValidation),
 			})
 			if fErr != nil {

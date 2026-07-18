@@ -2,9 +2,7 @@ package baseline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -25,27 +23,12 @@ func newIAMClient(ctx context.Context) (*iam.Client, error) {
 
 // LoadIAMBaseline loads the IAM baseline from disk.
 func LoadIAMBaseline() (*types.IAMBaseline, error) {
-	if _, err := os.Stat(config.IAMBaselineFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(config.IAMBaselineFile)
-	if err != nil {
-		return nil, err
-	}
-	var bl types.IAMBaseline
-	if err := json.Unmarshal(data, &bl); err != nil {
-		return nil, err
-	}
-	return &bl, nil
+	return LoadBaseline[types.IAMBaseline](config.IAMBaselineFile)
 }
 
 // SaveIAMBaseline saves the IAM baseline to disk.
 func SaveIAMBaseline(bl *types.IAMBaseline) error {
-	data, err := json.MarshalIndent(bl, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(config.IAMBaselineFile, data, 0644)
+	return SaveBaseline(config.IAMBaselineFile, bl)
 }
 
 // CreateIAMBaseline snapshots the current IAM password policy and user states.

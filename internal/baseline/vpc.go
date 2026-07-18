@@ -2,9 +2,7 @@ package baseline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -18,27 +16,12 @@ import (
 
 // LoadVPCBaseline loads the VPC baseline from disk.
 func LoadVPCBaseline() (*types.VPCBaseline, error) {
-	if _, err := os.Stat(config.VPCBaselineFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(config.VPCBaselineFile)
-	if err != nil {
-		return nil, err
-	}
-	var bl types.VPCBaseline
-	if err := json.Unmarshal(data, &bl); err != nil {
-		return nil, err
-	}
-	return &bl, nil
+	return LoadBaseline[types.VPCBaseline](config.VPCBaselineFile)
 }
 
 // SaveVPCBaseline saves the VPC baseline to disk.
 func SaveVPCBaseline(bl *types.VPCBaseline) error {
-	data, err := json.MarshalIndent(bl, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(config.VPCBaselineFile, data, 0644)
+	return SaveBaseline(config.VPCBaselineFile, bl)
 }
 
 // CreateVPCBaseline snapshots the current VPC configurations.

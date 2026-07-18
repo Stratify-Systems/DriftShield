@@ -178,11 +178,11 @@ func ScanAllBuckets(ctx context.Context) (*types.S3ScanResults, error) {
 	accountLevelSecure, acctErr := getAccountLevelBPA(ctx)
 	if acctErr != nil {
 		fmt.Printf("[WARN] Could not check account-level Block Public Access: %v\n", acctErr)
-		fmt.Println("       Falling back to bucket-level checks only.\n")
+		fmt.Println("       Falling back to bucket-level checks only.")
 		accountLevelSecure = false
 	} else if accountLevelSecure {
 		fmt.Println("[INFO] Account-level Block Public Access is fully enabled.")
-		fmt.Println("       All buckets are protected at the account level.\n")
+		fmt.Println("       All buckets are protected at the account level.")
 	}
 
 	res := &types.S3ScanResults{}

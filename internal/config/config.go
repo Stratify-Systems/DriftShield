@@ -1,6 +1,8 @@
 // Package config holds DriftShield configuration settings.
 package config
 
+import "os"
+
 // Version of DriftShield.
 const Version = "2.0.0"
 
@@ -26,24 +28,24 @@ type SlackSettings struct {
 
 // AWSSESConfig is the active SES configuration.
 var AWSSESConfig = SESConfig{
-	Enabled:        true,
-	Region:         "ap-south-1",
-	SenderEmail:    "tksurya164@gmail.com",
-	RecipientEmail: "suryatk2007@gmail.com",
+	Enabled:        os.Getenv("DRIFTSHIELD_SES_ENABLED") == "true",
+	Region:         getEnvOrDefault("DRIFTSHIELD_SES_REGION", "ap-south-1"),
+	SenderEmail:    os.Getenv("DRIFTSHIELD_SES_SENDER"),
+	RecipientEmail: os.Getenv("DRIFTSHIELD_SES_RECIPIENT"),
 }
 
 // SlackConfig is the active Slack configuration.
 var SlackConfig = SlackSettings{
-	Enabled:    false,
-	WebhookURL: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+	Enabled:    os.Getenv("DRIFTSHIELD_SLACK_ENABLED") == "true",
+	WebhookURL: os.Getenv("DRIFTSHIELD_SLACK_WEBHOOK_URL"),
 }
 
 // SNSSettings holds AWS SNS configuration.
 type SNSSettings struct {
-	Enabled           bool
-	Region            string
-	DefaultTopicARN   string
-	ServiceTopics     map[string]string // optional per-service topic ARNs
+	Enabled         bool
+	Region          string
+	DefaultTopicARN string
+	ServiceTopics   map[string]string // optional per-service topic ARNs
 }
 
 // SNSConfig is the active SNS configuration.
@@ -51,10 +53,17 @@ type SNSSettings struct {
 // Optionally set ServiceTopics to route per-service alerts to dedicated topics.
 // Example ServiceTopics keys: "s3", "ec2", "iam", "cloudtrail", "vpc", "rds"
 var SNSConfig = SNSSettings{
-	Enabled:         true,
-	Region:          "ap-south-1",
-	DefaultTopicARN: "arn:aws:sns:ap-south-1:892978324911:driftshield-alerts",
+	Enabled:         os.Getenv("DRIFTSHIELD_SNS_ENABLED") == "true",
+	Region:          getEnvOrDefault("DRIFTSHIELD_SNS_REGION", "ap-south-1"),
+	DefaultTopicARN: os.Getenv("DRIFTSHIELD_SNS_TOPIC_ARN"),
 	ServiceTopics:   map[string]string{},
+}
+
+func getEnvOrDefault(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
 }
 
 // Baseline file paths.

@@ -143,22 +143,22 @@ type IAMUserSnapshot struct {
 
 // IAMPasswordPolicySnapshot captures the account password policy state.
 type IAMPasswordPolicySnapshot struct {
-	Exists                 bool  `json:"exists"`
-	MinimumPasswordLength  int32 `json:"minimum_password_length"`
-	RequireUppercase       bool  `json:"require_uppercase"`
-	RequireLowercase       bool  `json:"require_lowercase"`
-	RequireNumbers         bool  `json:"require_numbers"`
-	RequireSymbols         bool  `json:"require_symbols"`
-	ExpirePasswords        bool  `json:"expire_passwords"`
-	MaxPasswordAge         int32 `json:"max_password_age"`
+	Exists                  bool  `json:"exists"`
+	MinimumPasswordLength   int32 `json:"minimum_password_length"`
+	RequireUppercase        bool  `json:"require_uppercase"`
+	RequireLowercase        bool  `json:"require_lowercase"`
+	RequireNumbers          bool  `json:"require_numbers"`
+	RequireSymbols          bool  `json:"require_symbols"`
+	ExpirePasswords         bool  `json:"expire_passwords"`
+	MaxPasswordAge          int32 `json:"max_password_age"`
 	PasswordReusePrevention int32 `json:"password_reuse_prevention"`
 }
 
 // IAMBaseline represents the stored IAM baseline.
 type IAMBaseline struct {
-	CreatedAt      string                    `json:"created_at"`
-	UpdatedAt      string                    `json:"updated_at"`
-	PasswordPolicy IAMPasswordPolicySnapshot `json:"password_policy"`
+	CreatedAt      string                     `json:"created_at"`
+	UpdatedAt      string                     `json:"updated_at"`
+	PasswordPolicy IAMPasswordPolicySnapshot  `json:"password_policy"`
 	Users          map[string]IAMUserSnapshot `json:"users"`
 }
 
@@ -173,12 +173,12 @@ type IAMDrift struct {
 
 // CloudTrailTrailSnapshot captures the security-relevant state of one trail.
 type CloudTrailTrailSnapshot struct {
-	Name             string `json:"name"`
-	IsLogging        bool   `json:"is_logging"`
-	IsMultiRegion    bool   `json:"is_multi_region"`
-	LogValidation    bool   `json:"log_validation"`
-	S3Bucket         string `json:"s3_bucket"`
-	ReadWriteType    string `json:"read_write_type"`
+	Name          string `json:"name"`
+	IsLogging     bool   `json:"is_logging"`
+	IsMultiRegion bool   `json:"is_multi_region"`
+	LogValidation bool   `json:"log_validation"`
+	S3Bucket      string `json:"s3_bucket"`
+	ReadWriteType string `json:"read_write_type"`
 }
 
 // CloudTrailBaseline represents the stored CloudTrail baseline.
@@ -214,17 +214,17 @@ type VPCScanResults struct {
 
 // VPCSubnetSnapshot captures security-relevant state of a subnet.
 type VPCSubnetSnapshot struct {
-	SubnetID            string `json:"subnet_id"`
-	CIDR                string `json:"cidr"`
-	AutoAssignPublicIP  bool   `json:"auto_assign_public_ip"`
+	SubnetID           string `json:"subnet_id"`
+	CIDR               string `json:"cidr"`
+	AutoAssignPublicIP bool   `json:"auto_assign_public_ip"`
 }
 
 // VPCSnapshot captures security-relevant state of a VPC.
 type VPCSnapshot struct {
-	VPCID         string                       `json:"vpc_id"`
-	IsDefault     bool                         `json:"is_default"`
-	FlowLogsEnabled bool                       `json:"flow_logs_enabled"`
-	Subnets       map[string]VPCSubnetSnapshot `json:"subnets"`
+	VPCID           string                       `json:"vpc_id"`
+	IsDefault       bool                         `json:"is_default"`
+	FlowLogsEnabled bool                         `json:"flow_logs_enabled"`
+	Subnets         map[string]VPCSubnetSnapshot `json:"subnets"`
 }
 
 // VPCBaseline represents the stored VPC baseline.

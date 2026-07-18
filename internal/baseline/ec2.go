@@ -2,9 +2,7 @@ package baseline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"time"
 
@@ -28,27 +26,12 @@ func newEC2Client(ctx context.Context) (*ec2.Client, error) {
 
 // LoadEC2Baseline loads the EC2 baseline from disk.
 func LoadEC2Baseline() (*types.EC2Baseline, error) {
-	if _, err := os.Stat(config.EC2BaselineFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(config.EC2BaselineFile)
-	if err != nil {
-		return nil, err
-	}
-	var bl types.EC2Baseline
-	if err := json.Unmarshal(data, &bl); err != nil {
-		return nil, err
-	}
-	return &bl, nil
+	return LoadBaseline[types.EC2Baseline](config.EC2BaselineFile)
 }
 
 // SaveEC2Baseline saves the EC2 baseline to disk.
 func SaveEC2Baseline(bl *types.EC2Baseline) error {
-	data, err := json.MarshalIndent(bl, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(config.EC2BaselineFile, data, 0644)
+	return SaveBaseline(config.EC2BaselineFile, bl)
 }
 
 // CreateEC2Baseline creates a baseline from current security group configurations.
@@ -180,7 +163,7 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 		if len(added) > 0 || len(removed) > 0 {
 			drifts = append(drifts, types.EC2Drift{
 				SecurityGroup: sgID, Name: sgName, Type: "RULES_CHANGED",
-				Message: "Inbound rules changed",
+				Message:    "Inbound rules changed",
 				AddedRules: added, RemovedRules: removed,
 				Current: &currentCfg, Baseline: &blCfg,
 			})

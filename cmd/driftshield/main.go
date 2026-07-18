@@ -168,12 +168,12 @@ func runS3Drift() {
 	display.PrintBanner("DRIFT DETECTION")
 	fmt.Printf("Scan started at: %s\n\n", now())
 
-	drifts, err := baseline.CompareS3WithBaseline(ctx)
+	drifts, exists, err := baseline.CompareS3WithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
 	}
-	if drifts == nil {
+	if !exists {
 		fmt.Println("\n[!] No baseline found.")
 		fmt.Println("    Run 'driftshield s3 baseline' first to create one.")
 		return
@@ -193,12 +193,12 @@ func runS3Fix() {
 	display.PrintBanner("REMEDIATION")
 	fmt.Printf("Started at: %s\n\n", now())
 
-	drifts, err := baseline.CompareS3WithBaseline(ctx)
+	drifts, exists, err := baseline.CompareS3WithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
 	}
-	if drifts == nil {
+	if !exists {
 		fmt.Println("\n[!] No baseline found.")
 		fmt.Println("    Run 'driftshield s3 baseline' first to create one.")
 		return
@@ -338,7 +338,7 @@ func runEC2Fix() {
 		return
 	}
 
-	fmt.Println("\nScanning and fixing risky rules...\n")
+	fmt.Println("\nScanning and fixing risky rules...")
 
 	results, err := scanner.RemediateEC2Risks(ctx, false)
 	if err != nil {
@@ -443,7 +443,7 @@ func runIAMDrift() {
 func runIAMFix() {
 	display.PrintBanner("IAM REMEDIATION GUIDE")
 	fmt.Println("IAM changes are not auto-remediated — they can lock out users or break applications.")
-	fmt.Println("\nReview the findings from 'driftshield iam' and take these manual actions:\n")
+	fmt.Println("\nReview the findings from 'driftshield iam' and take these manual actions:")
 	fmt.Println(strings.Repeat("-", 60))
 	fmt.Println("  ROOT_MFA_DISABLED        → Enable MFA on root account in AWS Console")
 	fmt.Println("  ROOT_ACCESS_KEY_EXISTS   → Delete root access keys in IAM > Security credentials")

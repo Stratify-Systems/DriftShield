@@ -43,8 +43,28 @@ func sendEmail(ctx context.Context, subject, textBody, htmlBody string) error {
 	if err != nil {
 		return err
 	}
+	if err != nil {
+		return err
+	}
 	fmt.Printf("[EMAIL] Sent successfully. Message ID: %s\n", aws.ToString(out.MessageId))
 	return nil
+}
+
+func sendTableEmail(ctx context.Context, emailSubject, emailTitle, listTitle, textTitle, tableHeaders, rowsHTML, listText string) {
+	now := time.Now().Format("2006-01-02 15:04:05")
+	html := fmt.Sprintf(`<html><body>
+<h2>%s</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>%s</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2">%s</tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, emailTitle, now, listTitle, tableHeaders, rowsHTML)
+
+	text := fmt.Sprintf("%s\nTime: %s\n%s:\n%s", textTitle, now, listTitle, listText)
+
+	if err := sendEmail(ctx, emailSubject, text, html); err != nil {
+		fmt.Printf("[EMAIL] Alert failed: %v\n", err)
+	}
 }
 
 // SendS3Alerts sends alerts for at-risk S3 buckets via all configured channels.
@@ -96,7 +116,7 @@ func SendS3DriftAlerts(ctx context.Context, drifts []types.S3Drift) {
 	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {
 		return
 	}
-	fmt.Println("\n[ALERT] Sending drift alerts...\n")
+	fmt.Println("\n[ALERT] Sending drift alerts...")
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
@@ -185,7 +205,6 @@ func SendIAMAlerts(ctx context.Context, findings []types.IAMFinding) {
 	}
 	fmt.Printf("\n[ALERT] Sending IAM alerts for %d finding(s)...\n", len(findings))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, f := range findings {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
@@ -193,19 +212,14 @@ func SendIAMAlerts(ctx context.Context, findings []types.IAMFinding) {
 		fmt.Fprintf(&textList, "  [%s] %s: %s\n", f.Severity, f.Resource, f.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield IAM Security Alert</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Findings (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[IAM ALERT] DriftShield: %d IAM Security Issue(s)", len(findings)),
+		"DriftShield IAM Security Alert",
+		fmt.Sprintf("Findings (%d)", len(findings)),
+		"DriftShield IAM Alert",
+		`<th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Issue</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield IAM Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[IAM ALERT] DriftShield: %d IAM Security Issue(s)", len(findings)), text, html); err != nil {
-		fmt.Printf("[EMAIL] IAM alert failed: %v\n", err)
-	}
 	SNSPublishIAMAlerts(ctx, findings)
 }
 
@@ -216,7 +230,6 @@ func SendCloudTrailAlerts(ctx context.Context, findings []types.CloudTrailFindin
 	}
 	fmt.Printf("\n[ALERT] Sending CloudTrail alerts for %d finding(s)...\n", len(findings))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, f := range findings {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
@@ -224,19 +237,14 @@ func SendCloudTrailAlerts(ctx context.Context, findings []types.CloudTrailFindin
 		fmt.Fprintf(&textList, "  [%s] Trail '%s': %s\n", f.Severity, f.TrailName, f.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield CloudTrail Security Alert</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Findings (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Trail</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[CLOUDTRAIL ALERT] DriftShield: %d CloudTrail Issue(s)", len(findings)),
+		"DriftShield CloudTrail Security Alert",
+		fmt.Sprintf("Findings (%d)", len(findings)),
+		"DriftShield CloudTrail Alert",
+		`<th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Trail</th><th style="padding:8px;border:1px solid #ddd">Issue</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield CloudTrail Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[CLOUDTRAIL ALERT] DriftShield: %d CloudTrail Issue(s)", len(findings)), text, html); err != nil {
-		fmt.Printf("[EMAIL] CloudTrail alert failed: %v\n", err)
-	}
 	SNSPublishCloudTrailAlerts(ctx, findings)
 }
 
@@ -247,7 +255,6 @@ func SendIAMDriftAlerts(ctx context.Context, drifts []types.IAMDrift) {
 	}
 	fmt.Printf("\n[ALERT] Sending IAM drift alerts for %d change(s)...\n", len(drifts))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, d := range drifts {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
@@ -255,19 +262,14 @@ func SendIAMDriftAlerts(ctx context.Context, drifts []types.IAMDrift) {
 		fmt.Fprintf(&textList, "  [%s] %s: %s\n", d.Type, d.Resource, d.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield IAM Drift Detected</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Changes (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[IAM DRIFT] DriftShield: %d IAM Configuration Change(s)", len(drifts)),
+		"DriftShield IAM Drift Detected",
+		fmt.Sprintf("Changes (%d)", len(drifts)),
+		"DriftShield IAM Drift",
+		`<th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield IAM Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[IAM DRIFT] DriftShield: %d IAM Configuration Change(s)", len(drifts)), text, html); err != nil {
-		fmt.Printf("[EMAIL] IAM drift alert failed: %v\n", err)
-	}
 	SNSPublishIAMDriftAlerts(ctx, drifts)
 }
 
@@ -278,7 +280,6 @@ func SendCloudTrailDriftAlerts(ctx context.Context, drifts []types.CloudTrailDri
 	}
 	fmt.Printf("\n[ALERT] Sending CloudTrail drift alerts for %d change(s)...\n", len(drifts))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, d := range drifts {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
@@ -286,19 +287,14 @@ func SendCloudTrailDriftAlerts(ctx context.Context, drifts []types.CloudTrailDri
 		fmt.Fprintf(&textList, "  [%s] Trail '%s': %s\n", d.Type, d.TrailName, d.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield CloudTrail Drift Detected</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Changes (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Trail</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[CLOUDTRAIL DRIFT] DriftShield: %d Trail Configuration Change(s)", len(drifts)),
+		"DriftShield CloudTrail Drift Detected",
+		fmt.Sprintf("Changes (%d)", len(drifts)),
+		"DriftShield CloudTrail Drift",
+		`<th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Trail</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield CloudTrail Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[CLOUDTRAIL DRIFT] DriftShield: %d Trail Configuration Change(s)", len(drifts)), text, html); err != nil {
-		fmt.Printf("[EMAIL] CloudTrail drift alert failed: %v\n", err)
-	}
 	SNSPublishCloudTrailDriftAlerts(ctx, drifts)
 }
 
@@ -309,7 +305,6 @@ func SendVPCAlerts(ctx context.Context, findings []types.VPCFinding) {
 	}
 	fmt.Printf("\n[ALERT] Sending VPC alerts for %d finding(s)...\n", len(findings))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, f := range findings {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
@@ -317,19 +312,14 @@ func SendVPCAlerts(ctx context.Context, findings []types.VPCFinding) {
 		fmt.Fprintf(&textList, "  [%s] %s: %s\n", f.Severity, f.Resource, f.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield VPC Security Alert</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Findings (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[VPC ALERT] DriftShield: %d VPC Security Issue(s)", len(findings)),
+		"DriftShield VPC Security Alert",
+		fmt.Sprintf("Findings (%d)", len(findings)),
+		"DriftShield VPC Alert",
+		`<th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Issue</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield VPC Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[VPC ALERT] DriftShield: %d VPC Security Issue(s)", len(findings)), text, html); err != nil {
-		fmt.Printf("[EMAIL] VPC alert failed: %v\n", err)
-	}
 	SNSPublishVPCAlerts(ctx, findings)
 }
 
@@ -340,7 +330,6 @@ func SendVPCDriftAlerts(ctx context.Context, drifts []types.VPCDrift) {
 	}
 	fmt.Printf("\n[ALERT] Sending VPC drift alerts for %d change(s)...\n", len(drifts))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, d := range drifts {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
@@ -348,19 +337,14 @@ func SendVPCDriftAlerts(ctx context.Context, drifts []types.VPCDrift) {
 		fmt.Fprintf(&textList, "  [%s] %s: %s\n", d.Type, d.Resource, d.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield VPC Drift Detected</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Changes (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[VPC DRIFT] DriftShield: %d VPC Configuration Change(s)", len(drifts)),
+		"DriftShield VPC Drift Detected",
+		fmt.Sprintf("Changes (%d)", len(drifts)),
+		"DriftShield VPC Drift",
+		`<th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield VPC Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[VPC DRIFT] DriftShield: %d VPC Configuration Change(s)", len(drifts)), text, html); err != nil {
-		fmt.Printf("[EMAIL] VPC drift alert failed: %v\n", err)
-	}
 	SNSPublishVPCDriftAlerts(ctx, drifts)
 }
 
@@ -371,7 +355,6 @@ func SendRDSAlerts(ctx context.Context, findings []types.RDSFinding) {
 	}
 	fmt.Printf("\n[ALERT] Sending RDS alerts for %d finding(s)...\n", len(findings))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, f := range findings {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
@@ -379,19 +362,14 @@ func SendRDSAlerts(ctx context.Context, findings []types.RDSFinding) {
 		fmt.Fprintf(&textList, "  [%s] %s: %s\n", f.Severity, f.InstanceID, f.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield RDS Security Alert</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Findings (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Instance</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[RDS ALERT] DriftShield: %d RDS Security Issue(s)", len(findings)),
+		"DriftShield RDS Security Alert",
+		fmt.Sprintf("Findings (%d)", len(findings)),
+		"DriftShield RDS Alert",
+		`<th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Instance</th><th style="padding:8px;border:1px solid #ddd">Issue</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield RDS Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[RDS ALERT] DriftShield: %d RDS Security Issue(s)", len(findings)), text, html); err != nil {
-		fmt.Printf("[EMAIL] RDS alert failed: %v\n", err)
-	}
 	SNSPublishRDSAlerts(ctx, findings)
 }
 
@@ -402,7 +380,6 @@ func SendRDSDriftAlerts(ctx context.Context, drifts []types.RDSDrift) {
 	}
 	fmt.Printf("\n[ALERT] Sending RDS drift alerts for %d change(s)...\n", len(drifts))
 
-	now := time.Now().Format("2006-01-02 15:04:05")
 	var rows, textList strings.Builder
 	for _, d := range drifts {
 		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
@@ -410,19 +387,14 @@ func SendRDSDriftAlerts(ctx context.Context, drifts []types.RDSDrift) {
 		fmt.Fprintf(&textList, "  [%s] %s: %s\n", d.Type, d.InstanceID, d.Message)
 	}
 
-	html := fmt.Sprintf(`<html><body>
-<h2>DriftShield RDS Drift Detected</h2>
-<p><strong>Time:</strong> %s</p>
-<h3>Changes (%d):</h3>
-<table style="border-collapse:collapse;width:100%%">
-<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Instance</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
-<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+	sendTableEmail(ctx,
+		fmt.Sprintf("[RDS DRIFT] DriftShield: %d RDS Configuration Change(s)", len(drifts)),
+		"DriftShield RDS Drift Detected",
+		fmt.Sprintf("Changes (%d)", len(drifts)),
+		"DriftShield RDS Drift",
+		`<th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Instance</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th>`,
+		rows.String(), textList.String())
 
-	text := fmt.Sprintf("DriftShield RDS Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
-
-	if err := sendEmail(ctx, fmt.Sprintf("[RDS DRIFT] DriftShield: %d RDS Configuration Change(s)", len(drifts)), text, html); err != nil {
-		fmt.Printf("[EMAIL] RDS drift alert failed: %v\n", err)
-	}
 	SNSPublishRDSDriftAlerts(ctx, drifts)
 }
 

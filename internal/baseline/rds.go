@@ -2,9 +2,7 @@ package baseline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,27 +24,12 @@ func newRDSClient(ctx context.Context) (*rds.Client, error) {
 
 // LoadRDSBaseline loads the RDS baseline from disk.
 func LoadRDSBaseline() (*types.RDSBaseline, error) {
-	if _, err := os.Stat(config.RDSBaselineFile); os.IsNotExist(err) {
-		return nil, nil
-	}
-	data, err := os.ReadFile(config.RDSBaselineFile)
-	if err != nil {
-		return nil, err
-	}
-	var bl types.RDSBaseline
-	if err := json.Unmarshal(data, &bl); err != nil {
-		return nil, err
-	}
-	return &bl, nil
+	return LoadBaseline[types.RDSBaseline](config.RDSBaselineFile)
 }
 
 // SaveRDSBaseline saves the RDS baseline to disk.
 func SaveRDSBaseline(bl *types.RDSBaseline) error {
-	data, err := json.MarshalIndent(bl, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(config.RDSBaselineFile, data, 0644)
+	return SaveBaseline(config.RDSBaselineFile, bl)
 }
 
 // CreateRDSBaseline snapshots the current RDS instance configurations.
