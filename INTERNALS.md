@@ -3,7 +3,7 @@
 ## What DriftShield Does
 
 DriftShield is a CLI security tool that does two things:
-1. Scans AWS resources (S3 buckets and EC2 security groups) for misconfigurations
+1. Scans AWS resources (S3, EC2, IAM, CloudTrail, VPC) for misconfigurations
 2. Detects when those configurations change from a known-good state (drift) and optionally auto-remediates them
 
 ---
@@ -23,7 +23,7 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 | `cmd/driftshield` | CLI entry point, command wiring, output formatting |
 | `internal/types` | Shared structs used across all packages |
 | `internal/config` | Static configuration (region, SES, Slack, baseline paths) |
-| `internal/scanner` | Live AWS scanning for S3 and EC2 risks |
+| `internal/scanner` | Live AWS scanning for S3, EC2, IAM, CloudTrail, and VPC risks |
 | `internal/baseline` | Snapshot, compare, and remediate configuration drift |
 | `internal/alerts` | Send findings via AWS SES email and Slack webhook |
 | `internal/display` | Banner printing and port description helpers |
@@ -77,36 +77,136 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 
 ---
 
-### 3. Baseline System (Drift Detection)
+### 3. IAM Security Scanning
+
+**Command:** `driftshield iam`
+
+**File:** `internal/scanner/iam.go`
+
+**How it works:**
+- Calls `GetAccountSummary` to check root account MFA and active root access keys
+- Calls `GetAccountPasswordPolicy` to evaluate password policy strength
+- Calls `ListUsers` then for each user:
+  - `GetLoginProfile` — checks if console access is enabled
+  - `ListMFADevices` — checks if MFA is configured
+  - `ListAttachedUserPolicies` — checks for `AdministratorAccess`
+  - `ListUserPolicies` + `GetUserPolicy` — checks inline policies for wildcard `Action: *`
+  - `ListAccessKeys` + `GetAccessKeyLastUsed` — checks for stale or never-used keys (90+ days)
+
+**Checks and severities:**
+
+| Check | Severity |
+|---|---|
+| Root MFA disabled | CRITICAL |
+| Root account has active access keys | CRITICAL |
+| IAM user with console access but no MFA | HIGH |
+| No account password policy | HIGH |
+| User has `AdministratorAccess` attached | HIGH |
+| Inline policy with wildcard `Action: *` | HIGH |
+| Password length below 14 characters | MEDIUM |
+| Password complexity not fully enforced | MEDIUM |
+| Passwords never expire | MEDIUM |
+| Access key unused for 90+ days | MEDIUM |
+| Access key never used | MEDIUM |
+| Password reuse prevention not configured | LOW |
+
+**Fix behavior:** `driftshield iam fix` prints a manual remediation guide only — no AWS API calls are made. IAM auto-remediation is intentionally avoided to prevent locking out users or breaking applications.
+
+---
+
+### 4. CloudTrail Security Scanning
+
+**Command:** `driftshield cloudtrail`
+
+**File:** `internal/scanner/cloudtrail.go`
+
+**How it works:**
+- Calls `DescribeTrails` to list all trails in the account
+- For each trail, calls `GetTrailStatus` to check if logging is active
+- Calls `GetEventSelectors` to check if read events are captured
+- Checks for at least one multi-region trail
+- Checks log file validation is enabled
+
+**Checks and severities:**
+
+| Check | Severity |
+|---|---|
+| No trails configured | CRITICAL |
+| Trail exists but logging is disabled | CRITICAL |
+| No multi-region trail configured | HIGH |
+| Log file validation disabled | MEDIUM |
+| Only write events logged (read events missed) | LOW |
+
+**Auto-fix scope:** `driftshield cloudtrail fix` auto-remediates only:
+- `LOGGING_STATUS_CHANGED` → `StartLogging` or `StopLogging`
+- `LOG_VALIDATION_CHANGED` → `UpdateTrail`
+
+Trail added/deleted, S3 bucket changed, and event selector changes are skipped (manual action required).
+
+---
+
+### 5. VPC Security Scanning
+
+**Command:** `driftshield vpc`
+
+**File:** `internal/scanner/vpc.go`
+
+**How it works:**
+- Calls `DescribeVpcs` to list all VPCs in the region
+- Calls `DescribeFlowLogs` once to build a map of which VPCs have flow logs
+- For each VPC:
+  - Checks if it is the default VPC
+  - Checks if flow logs are enabled (using the pre-built map)
+  - Calls `DescribeNetworkAcls` filtered by VPC ID — checks for NACL rules that allow all inbound traffic (`protocol: -1`) from `0.0.0.0/0` or `::/0`
+  - Calls `DescribeSubnets` filtered by VPC ID — checks each subnet for `MapPublicIpOnLaunch`
+
+**Checks and severities:**
+
+| Check | Severity |
+|---|---|
+| Default VPC is in use | MEDIUM |
+| VPC has no flow logs enabled | HIGH |
+| NACL allows all inbound traffic from internet | HIGH |
+| Subnet auto-assigns public IPs on launch | MEDIUM |
+
+**Auto-fix scope:** `driftshield vpc fix` auto-remediates only:
+- `SUBNET_PUBLIC_IP_CHANGED` → `ModifySubnetAttribute` to restore baseline `MapPublicIpOnLaunch` value
+
+VPC added/deleted and flow log changes are skipped (manual action required).
+
+---
+
+### 6. Baseline System (Drift Detection)
 
 This is the core of DriftShield. It works in two steps.
 
 #### Step 1 — Create Baseline
 
-**Commands:** `driftshield s3 baseline` / `driftshield ec2 baseline`
+**Commands:** `driftshield <service> baseline`
 
-**Files:** `internal/baseline/s3.go`, `internal/baseline/ec2.go`
+**Files:** `internal/baseline/s3.go`, `ec2.go`, `iam.go`, `cloudtrail.go`, `vpc.go`
 
-- Fetches the current live state of all S3 buckets or EC2 security groups from AWS
-- For S3, captures per bucket:
-  - Public access block settings (all 4 flags)
-  - Versioning status (`Enabled`, `Suspended`, `Disabled`)
-  - Encryption algorithm (e.g. `AES256`, `aws:kms`, or `None`)
-- For EC2, captures per security group:
-  - All inbound rules: protocol, from/to port, and source CIDRs
-- Serializes the snapshot to a local JSON file:
-  - S3 → `baseline.json`
-  - EC2 → `ec2_baseline.json`
+Each baseline command fetches the current live state from AWS and serializes it to a JSON file under `baselines/`:
+
+| Service | Baseline file | What is captured |
+|---|---|---|
+| S3 | `baselines/s3_baseline.json` | Public access flags, versioning, encryption per bucket |
+| EC2 | `baselines/ec2_baseline.json` | All inbound rules per security group |
+| IAM | `baselines/iam_baseline.json` | Password policy + per-user MFA, policies, access key IDs |
+| CloudTrail | `baselines/cloudtrail_baseline.json` | Logging status, multi-region, log validation, S3 bucket, event selectors per trail |
+| VPC | `baselines/vpc_baseline.json` | Flow logs status + per-subnet auto-assign public IP per VPC |
 
 #### Step 2 — Compare Against Baseline
 
-**Commands:** `driftshield s3 drift` / `driftshield ec2 drift`
+**Commands:** `driftshield <service> drift`
 
 - Loads the saved JSON baseline from disk
-- Fetches the current live state from AWS again
-- Diffs them and reports changes
+- Fetches the current live state from AWS
+- Diffs them field by field and reports changes
 
-**S3 drift types detected:**
+**Nil-baseline detection:** IAM, CloudTrail, and VPC use a `([]Drift, bool, error)` return signature where the `bool` indicates whether a baseline file exists. This avoids the ambiguity of a nil slice (which could mean "no baseline" or "no drifts") that affects S3/EC2.
+
+**S3 drift types:**
 
 | Drift Type | Meaning |
 |---|---|
@@ -116,7 +216,7 @@ This is the core of DriftShield. It works in two steps.
 | `NEW_BUCKET` | Bucket exists now but wasn't in baseline |
 | `BUCKET_DELETED` | Bucket was in baseline but no longer exists |
 
-**EC2 drift types detected:**
+**EC2 drift types:**
 
 | Drift Type | Meaning |
 |---|---|
@@ -124,68 +224,105 @@ This is the core of DriftShield. It works in two steps.
 | `NEW_SECURITY_GROUP` | Security group not present in baseline |
 | `SECURITY_GROUP_DELETED` | Security group was deleted since baseline |
 
-EC2 rule comparison uses a string key `protocol|fromPort|toPort|sources` to identify each rule uniquely, making it easy to diff added vs removed rules.
+**IAM drift types:**
+
+| Drift Type | Meaning |
+|---|---|
+| `USER_ADDED` | New IAM user since baseline |
+| `USER_DELETED` | IAM user removed since baseline |
+| `MFA_CHANGED` | User MFA enabled/disabled |
+| `POLICY_ADDED` | Policy attached to user |
+| `POLICY_REMOVED` | Policy detached from user |
+| `ACCESS_KEY_ADDED` | New access key created |
+| `ACCESS_KEY_REMOVED` | Access key deleted |
+| `PASSWORD_POLICY_CHANGED` | Password policy setting changed |
+
+**CloudTrail drift types:**
+
+| Drift Type | Meaning |
+|---|---|
+| `LOGGING_STATUS_CHANGED` | Trail logging turned on or off |
+| `LOG_VALIDATION_CHANGED` | Log file validation toggled |
+| `MULTI_REGION_CHANGED` | Multi-region setting changed |
+| `S3_BUCKET_CHANGED` | Trail S3 destination bucket changed |
+| `EVENT_SELECTOR_CHANGED` | Read/write event selector changed |
+| `TRAIL_ADDED` | New trail created since baseline |
+| `TRAIL_DELETED` | Trail deleted since baseline |
+
+**VPC drift types:**
+
+| Drift Type | Meaning |
+|---|---|
+| `FLOW_LOGS_CHANGED` | Flow logs enabled or disabled |
+| `SUBNET_PUBLIC_IP_CHANGED` | Subnet auto-assign public IP toggled |
+| `SUBNET_ADDED` | New subnet created since baseline |
+| `SUBNET_DELETED` | Subnet deleted since baseline |
+| `VPC_ADDED` | New VPC created since baseline |
+| `VPC_DELETED` | VPC deleted since baseline |
 
 ---
 
-### 4. Auto-Remediation
+### 7. Auto-Remediation
 
-#### S3 Fix
+#### S3 Fix (`driftshield s3 fix`)
+- `PUBLIC_ACCESS_CHANGED` → `PutPublicAccessBlock`
+- `VERSIONING_CHANGED` → `PutBucketVersioning`
+- `ENCRYPTION_CHANGED` → `PutBucketEncryption` or `DeleteBucketEncryption`
+- `NEW_BUCKET`, `BUCKET_DELETED` → skipped
 
-**Command:** `driftshield s3 fix`
+#### EC2 Fix (`driftshield ec2 fix`)
+- Prompts for confirmation
+- Calls `RevokeSecurityGroupIngress` for each rule open to `0.0.0.0/0` on risky ports
+- Skips the `default` security group
 
-**File:** `internal/baseline/s3.go`
+#### IAM Fix (`driftshield iam fix`)
+- No AWS API calls — prints a manual remediation guide only
+- Intentional: disabling keys or detaching policies can break apps or lock out users
 
-- Runs drift detection first to find all drifted buckets
-- For each drift, calls the appropriate AWS API to restore the baseline value:
-  - `PUBLIC_ACCESS_CHANGED` → `PutPublicAccessBlock` with baseline flag values
-  - `VERSIONING_CHANGED` → `PutBucketVersioning` with baseline status
-  - `ENCRYPTION_CHANGED` → `PutBucketEncryption` (or `DeleteBucketEncryption` if baseline had none)
-- Skips `NEW_BUCKET` and `BUCKET_DELETED` — these require manual action
-- Reports Fixed / Failed / Skipped counts
+#### CloudTrail Fix (`driftshield cloudtrail fix`)
+- Prompts for confirmation
+- `LOGGING_STATUS_CHANGED` → `StartLogging` or `StopLogging`
+- `LOG_VALIDATION_CHANGED` → `UpdateTrail`
+- All other drift types → skipped
 
-#### EC2 Fix
-
-**Command:** `driftshield ec2 fix`
-
-**File:** `internal/scanner/ec2.go`
-
-- Prompts for confirmation before making any changes
-- Iterates all security groups, finds rules open to `0.0.0.0/0` or `::/0` on risky ports
-- Calls `RevokeSecurityGroupIngress` to remove each risky rule
-- Skips the `default` security group (flags it for manual review)
-- Handles both IPv4 (`IpRanges`) and IPv6 (`Ipv6Ranges`) rules separately
-- Reports Fixed / Failed / Skipped counts
+#### VPC Fix (`driftshield vpc fix`)
+- Prompts for confirmation
+- `SUBNET_PUBLIC_IP_CHANGED` → `ModifySubnetAttribute`
+- All other drift types → skipped
 
 ---
 
-### 5. Alert System
+### 8. Alert System
 
 Alerts are dispatched after every scan or drift check if issues are found.
 
 #### AWS SES Email (`internal/alerts/ses.go`)
 
 - Creates an SES client using the region from `config.AWSSESConfig.Region`
-- Sends both HTML and plain-text versions of the email via `ses:SendEmail`
-- S3 scan alerts list at-risk bucket names
-- S3 drift alerts include a formatted table: Bucket | Change Type | Details
-- EC2 scan alerts list risky security groups with per-risk severity and message
-- EC2 drift alerts include a table: Name | Security Group | Change | Details
+- Sends both HTML and plain-text versions via `ses:SendEmail`
 - Controlled by `config.AWSSESConfig.Enabled`
+
+| Function | Triggered by |
+|---|---|
+| `SendS3Alerts` | `driftshield s3` — at-risk buckets |
+| `SendS3DriftAlerts` | `driftshield s3 drift` |
+| `SendEC2Alerts` | `driftshield ec2` — risky security groups |
+| `SendEC2DriftAlerts` | `driftshield ec2 drift` |
+| `SendIAMAlerts` | `driftshield iam` — findings |
+| `SendIAMDriftAlerts` | `driftshield iam drift` |
+| `SendCloudTrailAlerts` | `driftshield cloudtrail` — findings |
+| `SendCloudTrailDriftAlerts` | `driftshield cloudtrail drift` |
+| `SendVPCAlerts` | `driftshield vpc` — findings |
+| `SendVPCDriftAlerts` | `driftshield vpc drift` |
 
 #### Slack Webhook (`internal/alerts/slack.go`)
 
 - Posts Block Kit formatted messages to the configured webhook URL via HTTP POST
-- Uses header + section blocks for structured output
 - Disabled by default — toggle via `config.SlackConfig.Enabled`
-- S3 alerts show bucket count and list
-- EC2 alerts show per-group risk summaries with severity labels
-
-Both channels are called together from unified functions like `SendS3Alerts` and `SendEC2Alerts`.
 
 ---
 
-### 6. Configuration
+### 9. Configuration
 
 **File:** `internal/config/config.go`
 
@@ -196,18 +333,21 @@ A static Go file — no environment variables or external config files. Edit it 
 | `AWSRegion` | Default AWS region (overridable with `--region` flag) |
 | `AWSSESConfig` | SES sender email, recipient email, region, enabled toggle |
 | `SlackConfig` | Slack webhook URL, enabled toggle |
-| `BaselineFile` | Path to S3 baseline JSON (`baseline.json`) |
-| `EC2BaselineFile` | Path to EC2 baseline JSON (`ec2_baseline.json`) |
+| `BaselineFile` | `baselines/s3_baseline.json` |
+| `EC2BaselineFile` | `baselines/ec2_baseline.json` |
+| `IAMBaselineFile` | `baselines/iam_baseline.json` |
+| `CloudTrailBaselineFile` | `baselines/cloudtrail_baseline.json` |
+| `VPCBaselineFile` | `baselines/vpc_baseline.json` |
 
 The `--region` / `-r` flag sets `CurrentRegion` at runtime. `GetRegion()` returns `CurrentRegion` if set, otherwise falls back to `AWSRegion`.
 
 ---
 
-### 7. Scheduled Scanning
+### 10. Scheduled Scanning
 
 **File:** `scripts/scheduled_scan.sh`
 
-A shell wrapper around the compiled binary, designed to be run by cron. It accepts `all`, `s3`, or `ec2` as an argument and runs the corresponding scan + drift detection. Output is appended to `logs/cron.log`.
+A shell wrapper around the compiled binary, designed to be run by cron. It accepts `all`, `s3`, `ec2`, `iam`, `cloudtrail`, or `vpc` as an argument and runs the corresponding scan + drift detection. Output is appended to `logs/cron.log`.
 
 Example crontab entry to run every hour:
 ```
@@ -226,12 +366,36 @@ ListBuckets
   → if AT RISK: SendS3Alerts → SES email + Slack
 ```
 
-### `driftshield s3 drift`
+### `driftshield iam`
 ```
-LoadS3Baseline() → reads baseline.json
-  → ListBuckets + GetBucketConfig() → fetches live state
-  → CompareS3WithBaseline() → diffs field by field → []S3Drift
-  → SendS3DriftAlerts() → SES email
+GetAccountSummary → root MFA / root access keys
+GetAccountPasswordPolicy → password policy checks
+ListUsers → for each user:
+  GetLoginProfile + ListMFADevices + ListAttachedUserPolicies
+  ListUserPolicies + GetUserPolicy + ListAccessKeys + GetAccessKeyLastUsed
+  → []IAMFinding
+→ SendIAMAlerts → SES email
+```
+
+### `driftshield vpc drift`
+```
+LoadVPCBaseline() → reads baselines/vpc_baseline.json
+GetVPCSnapshot() →
+  DescribeVpcs + DescribeFlowLogs + DescribeNetworkAcls + DescribeSubnets
+  → map[vpcID]VPCSnapshot
+CompareVPCWithBaseline() → diffs field by field → []VPCDrift
+→ SendVPCDriftAlerts() → SES email
+```
+
+### `driftshield cloudtrail fix`
+```
+CompareCloudTrailWithBaseline() → []CloudTrailDrift
+Prompt for confirmation
+for each drift:
+  LOGGING_STATUS_CHANGED → StartLogging / StopLogging
+  LOG_VALIDATION_CHANGED → UpdateTrail
+  other → skip
+→ report Fixed / Failed / Skipped
 ```
 
 ### `driftshield ec2 fix`
@@ -257,4 +421,14 @@ Prompt for confirmation
 | `EC2Drift` | Security group, drift type, added/removed rules |
 | `S3Baseline` | Timestamp + map of bucket name → S3BucketConfig |
 | `EC2Baseline` | Timestamp + region + map of SG ID → SGConfig |
+| `IAMFinding` | Type, severity, resource, message for one IAM issue |
+| `IAMBaseline` | Timestamp + password policy snapshot + map of username → IAMUserSnapshot |
+| `IAMDrift` | Type, resource, message, old/new value |
+| `CloudTrailFinding` | Type, severity, trail name, message |
+| `CloudTrailBaseline` | Timestamp + map of trail name → CloudTrailTrailSnapshot |
+| `CloudTrailDrift` | Type, trail name, message, old/new value |
+| `VPCFinding` | Type, severity, VPC ID, resource, message |
+| `VPCBaseline` | Timestamp + map of VPC ID → VPCSnapshot |
+| `VPCSnapshot` | VPC ID, default flag, flow logs status, map of subnet ID → VPCSubnetSnapshot |
+| `VPCDrift` | Type, VPC ID, resource, message, old/new value |
 | `RemediationResults` | Fixed, Failed, Skipped lists of RemediationItem |

@@ -88,6 +88,18 @@ func init() {
 		&cobra.Command{Use: "fix", Short: "Fix drifted CloudTrail configurations", Run: func(cmd *cobra.Command, args []string) { runCloudTrailFix() }},
 	)
 
+	// VPC command
+	vpcCmd := &cobra.Command{
+		Use:   "vpc",
+		Short: "Run VPC security scan",
+		Run:   func(cmd *cobra.Command, args []string) { runVPCScan() },
+	}
+	vpcCmd.AddCommand(
+		&cobra.Command{Use: "baseline", Short: "Create VPC baseline", Run: func(cmd *cobra.Command, args []string) { runVPCBaseline() }},
+		&cobra.Command{Use: "drift", Short: "Detect VPC configuration drift", Run: func(cmd *cobra.Command, args []string) { runVPCDrift() }},
+		&cobra.Command{Use: "fix", Short: "Fix drifted VPC configurations", Run: func(cmd *cobra.Command, args []string) { runVPCFix() }},
+	)
+
 	// All command
 	allCmd := &cobra.Command{
 		Use:   "all",
@@ -95,7 +107,7 @@ func init() {
 		Run:   func(cmd *cobra.Command, args []string) { runAllScans() },
 	}
 
-	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, allCmd)
+	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, vpcCmd, allCmd)
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -587,6 +599,140 @@ func runCloudTrailFix() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// VPC handlers
+// ──────────────────────────────────────────────────────────────
+
+func runVPCScan() {
+	ctx := context.Background()
+	display.PrintBanner("VPC SECURITY SCAN")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	results, err := scanner.ScanVPC(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	printBox("VPC SCAN RESULTS", []string{
+		fmt.Sprintf("Findings: %d", len(results.Findings)),
+	})
+
+	if len(results.Findings) > 0 {
+		fmt.Println("\n[!] ACTION REQUIRED - VPC issues detected")
+		alerts.SendVPCAlerts(ctx, results.Findings)
+	} else {
+		fmt.Println("\n[+] All VPC configurations look secure.")
+	}
+}
+
+func runVPCBaseline() {
+	ctx := context.Background()
+	display.PrintBanner("CREATE VPC BASELINE")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	if _, err := baseline.CreateVPCBaseline(ctx); err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+	}
+}
+
+func runVPCDrift() {
+	ctx := context.Background()
+	display.PrintBanner("VPC DRIFT DETECTION")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareVPCWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No VPC baseline found.")
+		fmt.Println("    Run 'driftshield vpc baseline' first to create one.")
+		return
+	}
+	if len(drifts) > 0 {
+		printBox("VPC DRIFT DETECTION RESULTS", []string{
+			fmt.Sprintf("Configuration drifts found: %d", len(drifts)),
+		})
+		fmt.Println("\nDRIFT DETAILS:")
+		fmt.Println(strings.Repeat("-", 60))
+		for _, d := range drifts {
+			fmt.Printf("\n  [%s] %s\n  %s\n", d.Type, d.Resource, d.Message)
+			if d.OldValue != "" || d.NewValue != "" {
+				fmt.Printf("  Change: %s -> %s\n", d.OldValue, d.NewValue)
+			}
+		}
+		fmt.Println("\n" + strings.Repeat("-", 60))
+		alerts.SendVPCDriftAlerts(ctx, drifts)
+	} else {
+		fmt.Println("\n[+] VPC configuration matches baseline. No drift detected.")
+	}
+}
+
+func runVPCFix() {
+	ctx := context.Background()
+	display.PrintBanner("VPC AUTO-FIX")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareVPCWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No VPC baseline found.")
+		fmt.Println("    Run 'driftshield vpc baseline' first to create one.")
+		return
+	}
+	if len(drifts) == 0 {
+		fmt.Println("\n[+] No drifts detected. Nothing to fix.")
+		return
+	}
+
+	fmt.Printf("Found %d drift(s). The following changes will be made:\n\n", len(drifts))
+	for _, d := range drifts {
+		switch d.Type {
+		case "SUBNET_PUBLIC_IP_CHANGED":
+			fmt.Printf("  - Subnet '%s': restore auto-assign public IP to %s\n", d.Resource, d.OldValue)
+		default:
+			fmt.Printf("  - VPC '%s': [%s] requires manual action\n", d.VPCID, d.Type)
+		}
+	}
+
+	fmt.Printf("\n%s\n\n", strings.Repeat("-", 60))
+	fmt.Println("[!] WARNING: This will modify your VPC configuration!")
+	fmt.Print("    Continue? (yes/no): ")
+
+	reader := bufio.NewReader(os.Stdin)
+	resp, _ := reader.ReadString('\n')
+	resp = strings.TrimSpace(strings.ToLower(resp))
+	if resp != "yes" && resp != "y" {
+		fmt.Println("\n[CANCELLED] No changes made.")
+		return
+	}
+
+	fmt.Println()
+	results, err := baseline.RemediateVPCDrift(ctx, drifts)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	printBox("VPC REMEDIATION RESULTS", []string{
+		fmt.Sprintf("Fixed:    %d", len(results.Fixed)),
+		fmt.Sprintf("Failed:   %d", len(results.Failed)),
+		fmt.Sprintf("Skipped:  %d", len(results.Skipped)),
+	})
+
+	if len(results.Fixed) > 0 {
+		fmt.Println("\n[+] VPC settings restored. Run 'driftshield vpc' to verify.")
+	}
+	if len(results.Skipped) > 0 {
+		fmt.Println("\n[!] Some changes require manual action (VPC added/deleted, flow logs).")
+	}
+}
+
+// ──────────────────────────────────────────────────────────────
 // All scans
 // ──────────────────────────────────────────────────────────────
 
@@ -626,6 +772,14 @@ func runAllScans() {
 	fmt.Println()
 	ctResults, ctErr := scanner.ScanCloudTrail(ctx)
 
+	// VPC
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("  VPC SECURITY SCAN")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+	vpcResults, vpcErr := scanner.ScanVPC(ctx)
+
 	s3Secure, s3Risk := 0, 0
 	if s3Err == nil {
 		s3Secure = len(s3Results.Secure)
@@ -644,6 +798,10 @@ func runAllScans() {
 	if ctErr == nil {
 		ctFindings = len(ctResults.Findings)
 	}
+	vpcFindings := 0
+	if vpcErr == nil {
+		vpcFindings = len(vpcResults.Findings)
+	}
 
 	printBox("FULL SCAN RESULTS", []string{
 		"S3 Buckets:",
@@ -654,9 +812,11 @@ func runAllScans() {
 		fmt.Sprintf("  Findings: %d", iamFindings),
 		"CloudTrail:",
 		fmt.Sprintf("  Findings: %d", ctFindings),
+		"VPC:",
+		fmt.Sprintf("  Findings: %d", vpcFindings),
 	})
 
-	total := s3Risk + ec2Risk + iamFindings + ctFindings
+	total := s3Risk + ec2Risk + iamFindings + ctFindings + vpcFindings
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
 	} else {

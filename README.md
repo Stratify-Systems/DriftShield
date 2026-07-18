@@ -1,6 +1,6 @@
 # DriftShield
 
-A cloud security tool that detects S3, EC2, IAM, and CloudTrail misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
+A cloud security tool that detects S3, EC2, IAM, CloudTrail, and VPC misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
 
 Built in Go for fast, single-binary distribution with zero runtime dependencies.
 
@@ -10,6 +10,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)
 - **IAM Security Scanning**: Detects root account misconfigurations, missing MFA, admin policy abuse, and stale access keys
 - **CloudTrail Security Scanning**: Detects disabled logging, missing multi-region trails, and log validation issues
+- **VPC Security Scanning**: Detects default VPC usage, missing flow logs, open NACLs, and subnets with auto-assign public IP
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
@@ -32,15 +33,23 @@ DriftShield/
 │   │   ├── s3.go                # S3 security scanning
 │   │   ├── ec2.go               # EC2 security group scanning
 │   │   ├── iam.go               # IAM security scanning
-│   │   └── cloudtrail.go        # CloudTrail security scanning
+│   │   ├── cloudtrail.go        # CloudTrail security scanning
+│   │   └── vpc.go               # VPC security scanning
 │   ├── baseline/
 │   │   ├── s3.go                # S3 baseline management
 │   │   ├── ec2.go               # EC2 baseline management
 │   │   ├── iam.go               # IAM baseline management
-│   │   └── cloudtrail.go        # CloudTrail baseline management
+│   │   ├── cloudtrail.go        # CloudTrail baseline management
+│   │   └── vpc.go               # VPC baseline management
 │   └── alerts/
 │       ├── ses.go               # AWS SES email alerts
 │       └── slack.go             # Slack webhook alerts
+├── baselines/
+│   ├── s3_baseline.json         # S3 baseline snapshot
+│   ├── ec2_baseline.json        # EC2 baseline snapshot
+│   ├── iam_baseline.json        # IAM baseline snapshot
+│   ├── cloudtrail_baseline.json # CloudTrail baseline snapshot
+│   └── vpc_baseline.json        # VPC baseline snapshot
 ├── scripts/
 │   └── scheduled_scan.sh        # Cron job script
 ├── logs/
@@ -117,9 +126,17 @@ driftshield cloudtrail drift      # Detect CloudTrail configuration drift
 driftshield cloudtrail fix        # Fix drifted CloudTrail configurations
 ```
 
+### VPC Commands
+```bash
+driftshield vpc                   # Run VPC security scan
+driftshield vpc baseline          # Create VPC baseline
+driftshield vpc drift             # Detect VPC configuration drift
+driftshield vpc fix               # Fix drifted VPC configurations
+```
+
 ### Other Commands
 ```bash
-driftshield all                   # Run S3, EC2, IAM, and CloudTrail scans
+driftshield all                   # Run S3, EC2, IAM, CloudTrail, and VPC scans
 driftshield --help                # Show help message
 driftshield --version             # Show version
 driftshield completion bash       # Generate bash completion script
@@ -133,6 +150,7 @@ go run ./cmd/driftshield s3
 go run ./cmd/driftshield ec2 drift
 go run ./cmd/driftshield iam
 go run ./cmd/driftshield cloudtrail
+go run ./cmd/driftshield vpc
 go run ./cmd/driftshield all
 ```
 
@@ -174,6 +192,17 @@ The CloudTrail scanner detects these issues:
 | No multi-region trail configured | HIGH |
 | Log file validation disabled | MEDIUM |
 | Only write events logged (read events missed) | LOW |
+
+## VPC Security Checks
+
+The VPC scanner detects these issues:
+
+| Check | Severity |
+|-------|----------|
+| Default VPC is in use | MEDIUM |
+| VPC has no flow logs enabled | HIGH |
+| NACL allows all inbound traffic from internet | HIGH |
+| Subnet auto-assigns public IPs on launch | MEDIUM |
 
 ## EC2 Security Checks
 
@@ -267,7 +296,12 @@ tail -f logs/cron.log
             "Action": [
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSecurityGroupRules",
-                "ec2:RevokeSecurityGroupIngress"
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeFlowLogs",
+                "ec2:DescribeNetworkAcls",
+                "ec2:DescribeSubnets",
+                "ec2:ModifySubnetAttribute"
             ],
             "Resource": "*"
         },
@@ -310,7 +344,7 @@ Edit `internal/config/config.go` to configure:
 
 - **AWSSESConfig**: Email alert settings (sender, recipient, region)
 - **SlackConfig**: Slack webhook settings
-- **BaselineFile / EC2BaselineFile**: Baseline storage locations
+- **BaselineFile / EC2BaselineFile / IAMBaselineFile / CloudTrailBaselineFile / VPCBaselineFile**: Baseline storage locations (all under `baselines/`)
 - **AWSRegion**: Default AWS region
 
 ## Build Targets

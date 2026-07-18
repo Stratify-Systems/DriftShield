@@ -197,6 +197,52 @@ type CloudTrailDrift struct {
 	NewValue  string `json:"new_value,omitempty"`
 }
 
+// VPCFinding represents a single VPC security finding.
+type VPCFinding struct {
+	Type     string `json:"type"`
+	Severity string `json:"severity"`
+	VPCID    string `json:"vpc_id"`
+	Resource string `json:"resource"`
+	Message  string `json:"message"`
+}
+
+// VPCScanResults holds results from a VPC security scan.
+type VPCScanResults struct {
+	Findings []VPCFinding
+}
+
+// VPCSubnetSnapshot captures security-relevant state of a subnet.
+type VPCSubnetSnapshot struct {
+	SubnetID            string `json:"subnet_id"`
+	CIDR                string `json:"cidr"`
+	AutoAssignPublicIP  bool   `json:"auto_assign_public_ip"`
+}
+
+// VPCSnapshot captures security-relevant state of a VPC.
+type VPCSnapshot struct {
+	VPCID         string                       `json:"vpc_id"`
+	IsDefault     bool                         `json:"is_default"`
+	FlowLogsEnabled bool                       `json:"flow_logs_enabled"`
+	Subnets       map[string]VPCSubnetSnapshot `json:"subnets"`
+}
+
+// VPCBaseline represents the stored VPC baseline.
+type VPCBaseline struct {
+	CreatedAt string                 `json:"created_at"`
+	UpdatedAt string                 `json:"updated_at"`
+	VPCs      map[string]VPCSnapshot `json:"vpcs"`
+}
+
+// VPCDrift represents a single VPC configuration change since baseline.
+type VPCDrift struct {
+	Type     string `json:"type"`
+	VPCID    string `json:"vpc_id"`
+	Resource string `json:"resource"`
+	Message  string `json:"message"`
+	OldValue string `json:"old_value,omitempty"`
+	NewValue string `json:"new_value,omitempty"`
+}
+
 // S3Baseline represents the stored S3 baseline.
 type S3Baseline struct {
 	CreatedAt string                     `json:"created_at"`
