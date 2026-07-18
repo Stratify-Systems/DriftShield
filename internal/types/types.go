@@ -132,6 +132,71 @@ type CloudTrailScanResults struct {
 	Findings []CloudTrailFinding
 }
 
+// IAMUserSnapshot captures the security-relevant state of one IAM user.
+type IAMUserSnapshot struct {
+	Username         string   `json:"username"`
+	HasConsoleAccess bool     `json:"has_console_access"`
+	MFAEnabled       bool     `json:"mfa_enabled"`
+	AttachedPolicies []string `json:"attached_policies"`
+	AccessKeyIDs     []string `json:"access_key_ids"`
+}
+
+// IAMPasswordPolicySnapshot captures the account password policy state.
+type IAMPasswordPolicySnapshot struct {
+	Exists                 bool  `json:"exists"`
+	MinimumPasswordLength  int32 `json:"minimum_password_length"`
+	RequireUppercase       bool  `json:"require_uppercase"`
+	RequireLowercase       bool  `json:"require_lowercase"`
+	RequireNumbers         bool  `json:"require_numbers"`
+	RequireSymbols         bool  `json:"require_symbols"`
+	ExpirePasswords        bool  `json:"expire_passwords"`
+	MaxPasswordAge         int32 `json:"max_password_age"`
+	PasswordReusePrevention int32 `json:"password_reuse_prevention"`
+}
+
+// IAMBaseline represents the stored IAM baseline.
+type IAMBaseline struct {
+	CreatedAt      string                    `json:"created_at"`
+	UpdatedAt      string                    `json:"updated_at"`
+	PasswordPolicy IAMPasswordPolicySnapshot `json:"password_policy"`
+	Users          map[string]IAMUserSnapshot `json:"users"`
+}
+
+// IAMDrift represents a single IAM configuration change since baseline.
+type IAMDrift struct {
+	Type     string `json:"type"`
+	Resource string `json:"resource"`
+	Message  string `json:"message"`
+	OldValue string `json:"old_value,omitempty"`
+	NewValue string `json:"new_value,omitempty"`
+}
+
+// CloudTrailTrailSnapshot captures the security-relevant state of one trail.
+type CloudTrailTrailSnapshot struct {
+	Name             string `json:"name"`
+	IsLogging        bool   `json:"is_logging"`
+	IsMultiRegion    bool   `json:"is_multi_region"`
+	LogValidation    bool   `json:"log_validation"`
+	S3Bucket         string `json:"s3_bucket"`
+	ReadWriteType    string `json:"read_write_type"`
+}
+
+// CloudTrailBaseline represents the stored CloudTrail baseline.
+type CloudTrailBaseline struct {
+	CreatedAt string                             `json:"created_at"`
+	UpdatedAt string                             `json:"updated_at"`
+	Trails    map[string]CloudTrailTrailSnapshot `json:"trails"`
+}
+
+// CloudTrailDrift represents a single CloudTrail configuration change since baseline.
+type CloudTrailDrift struct {
+	Type      string `json:"type"`
+	TrailName string `json:"trail_name"`
+	Message   string `json:"message"`
+	OldValue  string `json:"old_value,omitempty"`
+	NewValue  string `json:"new_value,omitempty"`
+}
+
 // S3Baseline represents the stored S3 baseline.
 type S3Baseline struct {
 	CreatedAt string                     `json:"created_at"`

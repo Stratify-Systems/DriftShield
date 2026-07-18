@@ -36,6 +36,8 @@ logs/*.log
 # Generated baseline files
 baseline.json
 ec2_baseline.json
+cloudtrail_baseline.json
+iam_baseline.json
 
 # Reports
 reports/*.html

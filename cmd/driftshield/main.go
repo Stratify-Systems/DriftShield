@@ -70,6 +70,10 @@ func init() {
 		Short: "Run IAM security scan",
 		Run:   func(cmd *cobra.Command, args []string) { runIAMScan() },
 	}
+	iamCmd.AddCommand(
+		&cobra.Command{Use: "baseline", Short: "Create IAM baseline", Run: func(cmd *cobra.Command, args []string) { runIAMBaseline() }},
+		&cobra.Command{Use: "drift", Short: "Detect IAM configuration drift", Run: func(cmd *cobra.Command, args []string) { runIAMDrift() }},
+	)
 
 	// CloudTrail command
 	cloudtrailCmd := &cobra.Command{
@@ -77,6 +81,10 @@ func init() {
 		Short: "Run CloudTrail security scan",
 		Run:   func(cmd *cobra.Command, args []string) { runCloudTrailScan() },
 	}
+	cloudtrailCmd.AddCommand(
+		&cobra.Command{Use: "baseline", Short: "Create CloudTrail baseline", Run: func(cmd *cobra.Command, args []string) { runCloudTrailBaseline() }},
+		&cobra.Command{Use: "drift", Short: "Detect CloudTrail configuration drift", Run: func(cmd *cobra.Command, args []string) { runCloudTrailDrift() }},
+	)
 
 	// All command
 	allCmd := &cobra.Command{
@@ -362,6 +370,50 @@ func runIAMScan() {
 	}
 }
 
+func runIAMBaseline() {
+	ctx := context.Background()
+	display.PrintBanner("CREATE IAM BASELINE")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	if _, err := baseline.CreateIAMBaseline(ctx); err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+	}
+}
+
+func runIAMDrift() {
+	ctx := context.Background()
+	display.PrintBanner("IAM DRIFT DETECTION")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareIAMWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No IAM baseline found.")
+		fmt.Println("    Run 'driftshield iam baseline' first to create one.")
+		return
+	}
+	if len(drifts) > 0 {
+		printBox("IAM DRIFT DETECTION RESULTS", []string{
+			fmt.Sprintf("Configuration drifts found: %d", len(drifts)),
+		})
+		fmt.Println("\nDRIFT DETAILS:")
+		fmt.Println(strings.Repeat("-", 60))
+		for _, d := range drifts {
+			fmt.Printf("\n  [%s] %s\n  %s\n", d.Type, d.Resource, d.Message)
+			if d.OldValue != "" || d.NewValue != "" {
+				fmt.Printf("  Change: %s -> %s\n", d.OldValue, d.NewValue)
+			}
+		}
+		fmt.Println("\n" + strings.Repeat("-", 60))
+		alerts.SendIAMDriftAlerts(ctx, drifts)
+	} else {
+		fmt.Println("\n[+] IAM configuration matches baseline. No drift detected.")
+	}
+}
+
 func countIAMSeverities(findings []types.IAMFinding) (critical, high, medium, low int) {
 	for _, f := range findings {
 		switch f.Severity {
@@ -403,6 +455,50 @@ func runCloudTrailScan() {
 		alerts.SendCloudTrailAlerts(ctx, results.Findings)
 	} else {
 		fmt.Println("\n[+] CloudTrail configuration looks secure.")
+	}
+}
+
+func runCloudTrailBaseline() {
+	ctx := context.Background()
+	display.PrintBanner("CREATE CLOUDTRAIL BASELINE")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	if _, err := baseline.CreateCloudTrailBaseline(ctx); err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+	}
+}
+
+func runCloudTrailDrift() {
+	ctx := context.Background()
+	display.PrintBanner("CLOUDTRAIL DRIFT DETECTION")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareCloudTrailWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No CloudTrail baseline found.")
+		fmt.Println("    Run 'driftshield cloudtrail baseline' first to create one.")
+		return
+	}
+	if len(drifts) > 0 {
+		printBox("CLOUDTRAIL DRIFT DETECTION RESULTS", []string{
+			fmt.Sprintf("Configuration drifts found: %d", len(drifts)),
+		})
+		fmt.Println("\nDRIFT DETAILS:")
+		fmt.Println(strings.Repeat("-", 60))
+		for _, d := range drifts {
+			fmt.Printf("\n  [%s] Trail: %s\n  %s\n", d.Type, d.TrailName, d.Message)
+			if d.OldValue != "" || d.NewValue != "" {
+				fmt.Printf("  Change: %s -> %s\n", d.OldValue, d.NewValue)
+			}
+		}
+		fmt.Println("\n" + strings.Repeat("-", 60))
+		alerts.SendCloudTrailDriftAlerts(ctx, drifts)
+	} else {
+		fmt.Println("\n[+] CloudTrail configuration matches baseline. No drift detected.")
 	}
 }
 

@@ -235,6 +235,66 @@ func SendCloudTrailAlerts(ctx context.Context, findings []types.CloudTrailFindin
 	}
 }
 
+// SendIAMDriftAlerts sends email alerts for IAM configuration drift.
+func SendIAMDriftAlerts(ctx context.Context, drifts []types.IAMDrift) {
+	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {
+		return
+	}
+	fmt.Printf("\n[ALERT] Sending IAM drift alerts for %d change(s)...\n", len(drifts))
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	var rows, textList strings.Builder
+	for _, d := range drifts {
+		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
+			d.Type, d.Resource, d.Message, d.OldValue, d.NewValue)
+		fmt.Fprintf(&textList, "  [%s] %s: %s\n", d.Type, d.Resource, d.Message)
+	}
+
+	html := fmt.Sprintf(`<html><body>
+<h2>DriftShield IAM Drift Detected</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>Changes (%d):</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Resource</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+
+	text := fmt.Sprintf("DriftShield IAM Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
+
+	if err := sendEmail(ctx, fmt.Sprintf("[IAM DRIFT] DriftShield: %d IAM Configuration Change(s)", len(drifts)), text, html); err != nil {
+		fmt.Printf("[EMAIL] IAM drift alert failed: %v\n", err)
+	}
+}
+
+// SendCloudTrailDriftAlerts sends email alerts for CloudTrail configuration drift.
+func SendCloudTrailDriftAlerts(ctx context.Context, drifts []types.CloudTrailDrift) {
+	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {
+		return
+	}
+	fmt.Printf("\n[ALERT] Sending CloudTrail drift alerts for %d change(s)...\n", len(drifts))
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	var rows, textList strings.Builder
+	for _, d := range drifts {
+		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
+			d.Type, d.TrailName, d.Message, d.OldValue, d.NewValue)
+		fmt.Fprintf(&textList, "  [%s] Trail '%s': %s\n", d.Type, d.TrailName, d.Message)
+	}
+
+	html := fmt.Sprintf(`<html><body>
+<h2>DriftShield CloudTrail Drift Detected</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>Changes (%d):</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Trail</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+
+	text := fmt.Sprintf("DriftShield CloudTrail Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
+
+	if err := sendEmail(ctx, fmt.Sprintf("[CLOUDTRAIL DRIFT] DriftShield: %d Trail Configuration Change(s)", len(drifts)), text, html); err != nil {
+		fmt.Printf("[EMAIL] CloudTrail drift alert failed: %v\n", err)
+	}
+}
+
 // SendEC2DriftAlerts sends email alerts for EC2 security group drift.
 func SendEC2DriftAlerts(ctx context.Context, drifts []types.EC2Drift) {
 	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {

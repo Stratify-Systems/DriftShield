@@ -35,7 +35,9 @@ DriftShield/
 │   │   └── cloudtrail.go        # CloudTrail security scanning
 │   ├── baseline/
 │   │   ├── s3.go                # S3 baseline management
-│   │   └── ec2.go               # EC2 baseline management
+│   │   ├── ec2.go               # EC2 baseline management
+│   │   ├── iam.go               # IAM baseline management
+│   │   └── cloudtrail.go        # CloudTrail baseline management
 │   └── alerts/
 │       ├── ses.go               # AWS SES email alerts
 │       └── slack.go             # Slack webhook alerts
@@ -102,11 +104,15 @@ driftshield ec2 -r us-east-1      # Scan specific region
 ### IAM Commands
 ```bash
 driftshield iam                   # Run IAM security scan
+driftshield iam baseline          # Create IAM baseline
+driftshield iam drift             # Detect IAM configuration drift
 ```
 
 ### CloudTrail Commands
 ```bash
 driftshield cloudtrail            # Run CloudTrail security scan
+driftshield cloudtrail baseline   # Create CloudTrail baseline
+driftshield cloudtrail drift      # Detect CloudTrail configuration drift
 ```
 
 ### Other Commands
