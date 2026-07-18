@@ -106,6 +106,7 @@ driftshield ec2 -r us-east-1      # Scan specific region
 driftshield iam                   # Run IAM security scan
 driftshield iam baseline          # Create IAM baseline
 driftshield iam drift             # Detect IAM configuration drift
+driftshield iam fix               # Show manual remediation steps
 ```
 
 ### CloudTrail Commands
@@ -113,6 +114,7 @@ driftshield iam drift             # Detect IAM configuration drift
 driftshield cloudtrail            # Run CloudTrail security scan
 driftshield cloudtrail baseline   # Create CloudTrail baseline
 driftshield cloudtrail drift      # Detect CloudTrail configuration drift
+driftshield cloudtrail fix        # Fix drifted CloudTrail configurations
 ```
 
 ### Other Commands

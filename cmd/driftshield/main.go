@@ -73,6 +73,7 @@ func init() {
 	iamCmd.AddCommand(
 		&cobra.Command{Use: "baseline", Short: "Create IAM baseline", Run: func(cmd *cobra.Command, args []string) { runIAMBaseline() }},
 		&cobra.Command{Use: "drift", Short: "Detect IAM configuration drift", Run: func(cmd *cobra.Command, args []string) { runIAMDrift() }},
+		&cobra.Command{Use: "fix", Short: "Show manual remediation steps for IAM findings", Run: func(cmd *cobra.Command, args []string) { runIAMFix() }},
 	)
 
 	// CloudTrail command
@@ -84,6 +85,7 @@ func init() {
 	cloudtrailCmd.AddCommand(
 		&cobra.Command{Use: "baseline", Short: "Create CloudTrail baseline", Run: func(cmd *cobra.Command, args []string) { runCloudTrailBaseline() }},
 		&cobra.Command{Use: "drift", Short: "Detect CloudTrail configuration drift", Run: func(cmd *cobra.Command, args []string) { runCloudTrailDrift() }},
+		&cobra.Command{Use: "fix", Short: "Fix drifted CloudTrail configurations", Run: func(cmd *cobra.Command, args []string) { runCloudTrailFix() }},
 	)
 
 	// All command
@@ -414,6 +416,23 @@ func runIAMDrift() {
 	}
 }
 
+func runIAMFix() {
+	display.PrintBanner("IAM REMEDIATION GUIDE")
+	fmt.Println("IAM changes are not auto-remediated — they can lock out users or break applications.")
+	fmt.Println("\nReview the findings from 'driftshield iam' and take these manual actions:\n")
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println("  ROOT_MFA_DISABLED        → Enable MFA on root account in AWS Console")
+	fmt.Println("  ROOT_ACCESS_KEY_EXISTS   → Delete root access keys in IAM > Security credentials")
+	fmt.Println("  USER_MFA_DISABLED        → Enable MFA for the user in IAM > Users > Security credentials")
+	fmt.Println("  ADMIN_POLICY_ATTACHED    → Detach AdministratorAccess, apply least-privilege policy")
+	fmt.Println("  WILDCARD_ACTION_POLICY   → Edit inline policy to restrict Action to specific services")
+	fmt.Println("  STALE_ACCESS_KEY         → Deactivate or delete the key in IAM > Users > Security credentials")
+	fmt.Println("  NO_PASSWORD_POLICY       → Set account password policy in IAM > Account settings")
+	fmt.Println("  WEAK_PASSWORD_*          → Update password policy: min 14 chars, complexity, expiry")
+	fmt.Println(strings.Repeat("-", 60))
+	fmt.Println("\nRun 'driftshield iam' to see current findings.")
+}
+
 func countIAMSeverities(findings []types.IAMFinding) (critical, high, medium, low int) {
 	for _, f := range findings {
 		switch f.Severity {
@@ -499,6 +518,71 @@ func runCloudTrailDrift() {
 		alerts.SendCloudTrailDriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] CloudTrail configuration matches baseline. No drift detected.")
+	}
+}
+
+func runCloudTrailFix() {
+	ctx := context.Background()
+	display.PrintBanner("CLOUDTRAIL AUTO-FIX")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareCloudTrailWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No CloudTrail baseline found.")
+		fmt.Println("    Run 'driftshield cloudtrail baseline' first to create one.")
+		return
+	}
+	if len(drifts) == 0 {
+		fmt.Println("\n[+] No drifts detected. Nothing to fix.")
+		return
+	}
+
+	fmt.Printf("Found %d drift(s). The following changes will be made:\n\n", len(drifts))
+	for _, d := range drifts {
+		switch d.Type {
+		case "LOGGING_STATUS_CHANGED":
+			fmt.Printf("  - Trail '%s': restore logging to %s\n", d.TrailName, d.OldValue)
+		case "LOG_VALIDATION_CHANGED":
+			fmt.Printf("  - Trail '%s': restore log file validation to %s\n", d.TrailName, d.OldValue)
+		default:
+			fmt.Printf("  - Trail '%s': [%s] requires manual action\n", d.TrailName, d.Type)
+		}
+	}
+
+	fmt.Printf("\n%s\n\n", strings.Repeat("-", 60))
+	fmt.Println("[!] WARNING: This will modify your CloudTrail configuration!")
+	fmt.Print("    Continue? (yes/no): ")
+
+	reader := bufio.NewReader(os.Stdin)
+	resp, _ := reader.ReadString('\n')
+	resp = strings.TrimSpace(strings.ToLower(resp))
+	if resp != "yes" && resp != "y" {
+		fmt.Println("\n[CANCELLED] No changes made.")
+		return
+	}
+
+	fmt.Println()
+	results, err := baseline.RemediateCloudTrailDrift(ctx, drifts)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	printBox("CLOUDTRAIL REMEDIATION RESULTS", []string{
+		fmt.Sprintf("Fixed:    %d", len(results.Fixed)),
+		fmt.Sprintf("Failed:   %d", len(results.Failed)),
+		fmt.Sprintf("Skipped:  %d", len(results.Skipped)),
+	})
+
+	if len(results.Fixed) > 0 {
+		fmt.Println("\n[+] Trails restored. Run 'driftshield cloudtrail' to verify.")
+	}
+	if len(results.Skipped) > 0 {
+		fmt.Println("\n[!] Some changes require manual action (trail added/deleted/S3 bucket changed).")
 	}
 }
 
