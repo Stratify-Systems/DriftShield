@@ -16,7 +16,7 @@ import (
 )
 
 func newIAMClient(ctx context.Context) (*iam.Client, error) {
-	cfg, err := awscfg.LoadDefaultConfig(ctx)
+	cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithRegion(config.GetRegion()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}

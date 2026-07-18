@@ -10,11 +10,12 @@ import (
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 
+	"github.com/SuryaTK2007/DriftShield/internal/config"
 	"github.com/SuryaTK2007/DriftShield/internal/types"
 )
 
 func NewIAMClient(ctx context.Context) (*iam.Client, error) {
-	cfg, err := awscfg.LoadDefaultConfig(ctx)
+	cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithRegion(config.GetRegion()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}

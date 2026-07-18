@@ -889,7 +889,8 @@ func runVPCFix() {
 func runAllScans() {
 	ctx := context.Background()
 	display.PrintBanner("FULL SECURITY SCAN")
-	fmt.Printf("Scan started at: %s\n\n", now())
+	fmt.Printf("Scan started at: %s\n", now())
+	fmt.Printf("Region:          %s\n\n", config.GetRegion())
 
 	// S3
 	fmt.Println(strings.Repeat("=", 60))

@@ -10,12 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 
+	"github.com/SuryaTK2007/DriftShield/internal/config"
 	"github.com/SuryaTK2007/DriftShield/internal/types"
 )
 
 // NewS3Client creates a new S3 client.
 func NewS3Client(ctx context.Context) (*s3.Client, error) {
-	cfg, err := awscfg.LoadDefaultConfig(ctx)
+	cfg, err := awscfg.LoadDefaultConfig(ctx, awscfg.WithRegion(config.GetRegion()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
