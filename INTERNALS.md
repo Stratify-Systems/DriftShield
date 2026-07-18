@@ -412,7 +412,8 @@ A static Go file — no environment variables or external config files. Edit it 
 
 | Setting | Purpose |
 |---|---|
-| `AWSRegion` | Default AWS region (overridable with `--region` flag) |
+| `AWSRegion` | Default AWS region used when `--region` flag is not provided |
+| `CurrentRegion` | Set at runtime by the `--region` / `-r` flag; empty string when not provided |
 | `AWSSESConfig` | SES sender email, recipient email, region, enabled toggle |
 | `SNSConfig` | Default topic ARN, per-service topic ARNs map, region, enabled toggle |
 | `SlackConfig` | Slack webhook URL, enabled toggle |
@@ -423,7 +424,33 @@ A static Go file — no environment variables or external config files. Edit it 
 | `VPCBaselineFile` | `baselines/vpc_baseline.json` |
 | `RDSBaselineFile` | `baselines/rds_baseline.json` |
 
-The `--region` / `-r` flag sets `CurrentRegion` at runtime. `GetRegion()` returns `CurrentRegion` if set, otherwise falls back to `AWSRegion`.
+#### Region Resolution
+
+The `--region` / `-r` flag is a Cobra persistent flag registered on the root command, so it applies to every subcommand. It sets `config.CurrentRegion` at parse time.
+
+All AWS clients call `config.GetRegion()` when constructing their SDK config:
+
+```go
+func GetRegion() string {
+    if CurrentRegion != "" {
+        return CurrentRegion
+    }
+    return AWSRegion
+}
+```
+
+| Client | File | Uses `GetRegion()` |
+|---|---|---|
+| EC2 | `scanner/ec2.go` | ✅ |
+| S3 | `scanner/s3.go` | ✅ |
+| IAM | `scanner/iam.go` | ✅ |
+| CloudTrail | `scanner/cloudtrail.go` | ✅ |
+| VPC | `scanner/vpc.go` | ✅ (via `NewEC2Client`) |
+| RDS | `scanner/rds.go` | ✅ |
+| S3 baseline | `baseline/s3.go` | ✅ |
+| IAM baseline | `baseline/iam.go` | ✅ |
+
+This means `--region` works uniformly across scan, baseline, drift, and fix operations for all services.
 
 ---
 

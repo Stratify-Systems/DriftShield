@@ -122,6 +122,7 @@ driftshield iam                   # Run IAM security scan
 driftshield iam baseline          # Create IAM baseline
 driftshield iam drift             # Detect IAM configuration drift
 driftshield iam fix               # Show manual remediation steps
+driftshield iam -r us-east-1      # Run with specific region
 ```
 
 ### CloudTrail Commands
@@ -130,6 +131,7 @@ driftshield cloudtrail            # Run CloudTrail security scan
 driftshield cloudtrail baseline   # Create CloudTrail baseline
 driftshield cloudtrail drift      # Detect CloudTrail configuration drift
 driftshield cloudtrail fix        # Fix drifted CloudTrail configurations
+driftshield cloudtrail -r us-east-1  # Scan specific region
 ```
 
 ### VPC Commands
@@ -138,6 +140,7 @@ driftshield vpc                   # Run VPC security scan
 driftshield vpc baseline          # Create VPC baseline
 driftshield vpc drift             # Detect VPC configuration drift
 driftshield vpc fix               # Fix drifted VPC configurations
+driftshield vpc -r us-east-1      # Scan specific region
 ```
 
 ### RDS Commands
@@ -146,11 +149,13 @@ driftshield rds                   # Run RDS security scan
 driftshield rds baseline          # Create RDS baseline
 driftshield rds drift             # Detect RDS configuration drift
 driftshield rds fix               # Fix drifted RDS configurations
+driftshield rds -r us-east-1      # Scan specific region
 ```
 
 ### Other Commands
 ```bash
 driftshield all                   # Run S3, EC2, IAM, CloudTrail, VPC, and RDS scans
+driftshield all -r us-east-1      # Run all scans in a specific region
 driftshield --help                # Show help message
 driftshield --version             # Show version
 driftshield completion bash       # Generate bash completion script
@@ -173,9 +178,18 @@ go run ./cmd/driftshield all
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--region` | `-r` | Set AWS region (e.g., us-east-1) |
+| `--region` | `-r` | Override AWS region for the scan (e.g., `us-east-1`). Falls back to `AWSRegion` in `config.go` if not set. |
 | `--help` | `-h` | Show help |
 | `--version` | `-v` | Show version |
+
+The `--region` flag is a persistent flag — it applies to all subcommands. Every AWS client (S3, EC2, IAM, CloudTrail, VPC, RDS) respects it via `config.GetRegion()`, which returns the flag value when set and the configured default otherwise.
+
+```bash
+# Scan a non-default region
+driftshield all -r eu-west-1
+driftshield rds drift --region ap-southeast-1
+driftshield ec2 fix -r us-west-2
+```
 
 ## IAM Security Checks
 
