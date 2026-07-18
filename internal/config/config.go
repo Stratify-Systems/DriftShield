@@ -1,7 +1,11 @@
 // Package config holds DriftShield configuration settings.
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 // Version of DriftShield.
 const Version = "2.0.0"
@@ -27,18 +31,10 @@ type SlackSettings struct {
 }
 
 // AWSSESConfig is the active SES configuration.
-var AWSSESConfig = SESConfig{
-	Enabled:        os.Getenv("DRIFTSHIELD_SES_ENABLED") == "true",
-	Region:         getEnvOrDefault("DRIFTSHIELD_SES_REGION", "ap-south-1"),
-	SenderEmail:    os.Getenv("DRIFTSHIELD_SES_SENDER"),
-	RecipientEmail: os.Getenv("DRIFTSHIELD_SES_RECIPIENT"),
-}
+var AWSSESConfig SESConfig
 
 // SlackConfig is the active Slack configuration.
-var SlackConfig = SlackSettings{
-	Enabled:    os.Getenv("DRIFTSHIELD_SLACK_ENABLED") == "true",
-	WebhookURL: os.Getenv("DRIFTSHIELD_SLACK_WEBHOOK_URL"),
-}
+var SlackConfig SlackSettings
 
 // SNSSettings holds AWS SNS configuration.
 type SNSSettings struct {
@@ -52,11 +48,30 @@ type SNSSettings struct {
 // Set DefaultTopicARN to your SNS topic ARN to enable.
 // Optionally set ServiceTopics to route per-service alerts to dedicated topics.
 // Example ServiceTopics keys: "s3", "ec2", "iam", "cloudtrail", "vpc", "rds"
-var SNSConfig = SNSSettings{
-	Enabled:         os.Getenv("DRIFTSHIELD_SNS_ENABLED") == "true",
-	Region:          getEnvOrDefault("DRIFTSHIELD_SNS_REGION", "ap-south-1"),
-	DefaultTopicARN: os.Getenv("DRIFTSHIELD_SNS_TOPIC_ARN"),
-	ServiceTopics:   map[string]string{},
+var SNSConfig SNSSettings
+
+func init() {
+	// Attempt to load .env file. Errors are ignored if file does not exist.
+	_ = godotenv.Load()
+
+	AWSSESConfig = SESConfig{
+		Enabled:        os.Getenv("DRIFTSHIELD_SES_ENABLED") == "true",
+		Region:         getEnvOrDefault("DRIFTSHIELD_SES_REGION", "ap-south-1"),
+		SenderEmail:    os.Getenv("DRIFTSHIELD_SES_SENDER"),
+		RecipientEmail: os.Getenv("DRIFTSHIELD_SES_RECIPIENT"),
+	}
+
+	SlackConfig = SlackSettings{
+		Enabled:    os.Getenv("DRIFTSHIELD_SLACK_ENABLED") == "true",
+		WebhookURL: os.Getenv("DRIFTSHIELD_SLACK_WEBHOOK_URL"),
+	}
+
+	SNSConfig = SNSSettings{
+		Enabled:         os.Getenv("DRIFTSHIELD_SNS_ENABLED") == "true",
+		Region:          getEnvOrDefault("DRIFTSHIELD_SNS_REGION", "ap-south-1"),
+		DefaultTopicARN: os.Getenv("DRIFTSHIELD_SNS_TOPIC_ARN"),
+		ServiceTopics:   map[string]string{},
+	}
 }
 
 func getEnvOrDefault(key, defaultVal string) string {
