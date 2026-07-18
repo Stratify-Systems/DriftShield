@@ -88,6 +88,18 @@ func init() {
 		&cobra.Command{Use: "fix", Short: "Fix drifted CloudTrail configurations", Run: func(cmd *cobra.Command, args []string) { runCloudTrailFix() }},
 	)
 
+	// RDS command
+	rdsCmd := &cobra.Command{
+		Use:   "rds",
+		Short: "Run RDS security scan",
+		Run:   func(cmd *cobra.Command, args []string) { runRDSScan() },
+	}
+	rdsCmd.AddCommand(
+		&cobra.Command{Use: "baseline", Short: "Create RDS baseline", Run: func(cmd *cobra.Command, args []string) { runRDSBaseline() }},
+		&cobra.Command{Use: "drift", Short: "Detect RDS configuration drift", Run: func(cmd *cobra.Command, args []string) { runRDSDrift() }},
+		&cobra.Command{Use: "fix", Short: "Fix drifted RDS configurations", Run: func(cmd *cobra.Command, args []string) { runRDSFix() }},
+	)
+
 	// VPC command
 	vpcCmd := &cobra.Command{
 		Use:   "vpc",
@@ -107,7 +119,7 @@ func init() {
 		Run:   func(cmd *cobra.Command, args []string) { runAllScans() },
 	}
 
-	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, vpcCmd, allCmd)
+	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, rdsCmd, vpcCmd, allCmd)
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -599,6 +611,144 @@ func runCloudTrailFix() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// RDS handlers
+// ──────────────────────────────────────────────────────────────
+
+func runRDSScan() {
+	ctx := context.Background()
+	display.PrintBanner("RDS SECURITY SCAN")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	results, err := scanner.ScanRDS(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	printBox("RDS SCAN RESULTS", []string{
+		fmt.Sprintf("Findings: %d", len(results.Findings)),
+	})
+
+	if len(results.Findings) > 0 {
+		fmt.Println("\n[!] ACTION REQUIRED - RDS issues detected")
+		alerts.SendRDSAlerts(ctx, results.Findings)
+	} else {
+		fmt.Println("\n[+] All RDS instances look secure.")
+	}
+}
+
+func runRDSBaseline() {
+	ctx := context.Background()
+	display.PrintBanner("CREATE RDS BASELINE")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	if _, err := baseline.CreateRDSBaseline(ctx); err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+	}
+}
+
+func runRDSDrift() {
+	ctx := context.Background()
+	display.PrintBanner("RDS DRIFT DETECTION")
+	fmt.Printf("Scan started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareRDSWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No RDS baseline found.")
+		fmt.Println("    Run 'driftshield rds baseline' first to create one.")
+		return
+	}
+	if len(drifts) > 0 {
+		printBox("RDS DRIFT DETECTION RESULTS", []string{
+			fmt.Sprintf("Configuration drifts found: %d", len(drifts)),
+		})
+		fmt.Println("\nDRIFT DETAILS:")
+		fmt.Println(strings.Repeat("-", 60))
+		for _, d := range drifts {
+			fmt.Printf("\n  [%s] %s\n  %s\n", d.Type, d.InstanceID, d.Message)
+			if d.OldValue != "" || d.NewValue != "" {
+				fmt.Printf("  Change: %s -> %s\n", d.OldValue, d.NewValue)
+			}
+		}
+		fmt.Println("\n" + strings.Repeat("-", 60))
+		alerts.SendRDSDriftAlerts(ctx, drifts)
+	} else {
+		fmt.Println("\n[+] RDS configuration matches baseline. No drift detected.")
+	}
+}
+
+func runRDSFix() {
+	ctx := context.Background()
+	display.PrintBanner("RDS AUTO-FIX")
+	fmt.Printf("Started at: %s\n\n", now())
+
+	drifts, exists, err := baseline.CompareRDSWithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if !exists {
+		fmt.Println("\n[!] No RDS baseline found.")
+		fmt.Println("    Run 'driftshield rds baseline' first to create one.")
+		return
+	}
+	if len(drifts) == 0 {
+		fmt.Println("\n[+] No drifts detected. Nothing to fix.")
+		return
+	}
+
+	fmt.Printf("Found %d drift(s). The following changes will be made:\n\n", len(drifts))
+	for _, d := range drifts {
+		switch d.Type {
+		case "PUBLIC_ACCESS_CHANGED":
+			fmt.Printf("  - Instance '%s': restore publicly accessible to %s\n", d.InstanceID, d.OldValue)
+		case "DELETION_PROTECTION_CHANGED":
+			fmt.Printf("  - Instance '%s': restore deletion protection to %s\n", d.InstanceID, d.OldValue)
+		case "AUTO_MINOR_UPGRADE_CHANGED":
+			fmt.Printf("  - Instance '%s': restore auto minor upgrade to %s\n", d.InstanceID, d.OldValue)
+		default:
+			fmt.Printf("  - Instance '%s': [%s] requires manual action\n", d.InstanceID, d.Type)
+		}
+	}
+
+	fmt.Printf("\n%s\n\n", strings.Repeat("-", 60))
+	fmt.Println("[!] WARNING: This will modify your RDS instances!")
+	fmt.Print("    Continue? (yes/no): ")
+
+	reader := bufio.NewReader(os.Stdin)
+	resp, _ := reader.ReadString('\n')
+	resp = strings.TrimSpace(strings.ToLower(resp))
+	if resp != "yes" && resp != "y" {
+		fmt.Println("\n[CANCELLED] No changes made.")
+		return
+	}
+
+	fmt.Println()
+	results, err := baseline.RemediateRDSDrift(ctx, drifts)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	printBox("RDS REMEDIATION RESULTS", []string{
+		fmt.Sprintf("Fixed:    %d", len(results.Fixed)),
+		fmt.Sprintf("Failed:   %d", len(results.Failed)),
+		fmt.Sprintf("Skipped:  %d", len(results.Skipped)),
+	})
+
+	if len(results.Fixed) > 0 {
+		fmt.Println("\n[+] Instances restored. Run 'driftshield rds' to verify.")
+	}
+	if len(results.Skipped) > 0 {
+		fmt.Println("\n[!] Some changes require manual action (encryption, master username).")
+	}
+}
+
+// ──────────────────────────────────────────────────────────────
 // VPC handlers
 // ──────────────────────────────────────────────────────────────
 
@@ -772,6 +922,14 @@ func runAllScans() {
 	fmt.Println()
 	ctResults, ctErr := scanner.ScanCloudTrail(ctx)
 
+	// RDS
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println("  RDS SECURITY SCAN")
+	fmt.Println(strings.Repeat("=", 60))
+	fmt.Println()
+	rdsResults, rdsErr := scanner.ScanRDS(ctx)
+
 	// VPC
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 60))
@@ -798,6 +956,10 @@ func runAllScans() {
 	if ctErr == nil {
 		ctFindings = len(ctResults.Findings)
 	}
+	rdsFindings := 0
+	if rdsErr == nil {
+		rdsFindings = len(rdsResults.Findings)
+	}
 	vpcFindings := 0
 	if vpcErr == nil {
 		vpcFindings = len(vpcResults.Findings)
@@ -812,11 +974,13 @@ func runAllScans() {
 		fmt.Sprintf("  Findings: %d", iamFindings),
 		"CloudTrail:",
 		fmt.Sprintf("  Findings: %d", ctFindings),
+		"RDS:",
+		fmt.Sprintf("  Findings: %d", rdsFindings),
 		"VPC:",
 		fmt.Sprintf("  Findings: %d", vpcFindings),
 	})
 
-	total := s3Risk + ec2Risk + iamFindings + ctFindings + vpcFindings
+	total := s3Risk + ec2Risk + iamFindings + ctFindings + rdsFindings + vpcFindings
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
 	} else {

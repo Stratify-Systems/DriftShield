@@ -355,6 +355,66 @@ func SendVPCDriftAlerts(ctx context.Context, drifts []types.VPCDrift) {
 	}
 }
 
+// SendRDSAlerts sends email alerts for RDS security findings.
+func SendRDSAlerts(ctx context.Context, findings []types.RDSFinding) {
+	if len(findings) == 0 || !config.AWSSESConfig.Enabled {
+		return
+	}
+	fmt.Printf("\n[ALERT] Sending RDS alerts for %d finding(s)...\n", len(findings))
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	var rows, textList strings.Builder
+	for _, f := range findings {
+		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td></tr>`,
+			f.Severity, f.InstanceID, f.Message)
+		fmt.Fprintf(&textList, "  [%s] %s: %s\n", f.Severity, f.InstanceID, f.Message)
+	}
+
+	html := fmt.Sprintf(`<html><body>
+<h2>DriftShield RDS Security Alert</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>Findings (%d):</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Severity</th><th style="padding:8px;border:1px solid #ddd">Instance</th><th style="padding:8px;border:1px solid #ddd">Issue</th></tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, now, len(findings), rows.String())
+
+	text := fmt.Sprintf("DriftShield RDS Alert\nTime: %s\nFindings (%d):\n%s", now, len(findings), textList.String())
+
+	if err := sendEmail(ctx, fmt.Sprintf("[RDS ALERT] DriftShield: %d RDS Security Issue(s)", len(findings)), text, html); err != nil {
+		fmt.Printf("[EMAIL] RDS alert failed: %v\n", err)
+	}
+}
+
+// SendRDSDriftAlerts sends email alerts for RDS configuration drift.
+func SendRDSDriftAlerts(ctx context.Context, drifts []types.RDSDrift) {
+	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {
+		return
+	}
+	fmt.Printf("\n[ALERT] Sending RDS drift alerts for %d change(s)...\n", len(drifts))
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	var rows, textList strings.Builder
+	for _, d := range drifts {
+		fmt.Fprintf(&rows, `<tr><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s</td><td style="padding:8px;border:1px solid #ddd">%s -&gt; %s</td></tr>`,
+			d.Type, d.InstanceID, d.Message, d.OldValue, d.NewValue)
+		fmt.Fprintf(&textList, "  [%s] %s: %s\n", d.Type, d.InstanceID, d.Message)
+	}
+
+	html := fmt.Sprintf(`<html><body>
+<h2>DriftShield RDS Drift Detected</h2>
+<p><strong>Time:</strong> %s</p>
+<h3>Changes (%d):</h3>
+<table style="border-collapse:collapse;width:100%%">
+<tr style="background:#f2f2f2"><th style="padding:8px;border:1px solid #ddd">Type</th><th style="padding:8px;border:1px solid #ddd">Instance</th><th style="padding:8px;border:1px solid #ddd">Message</th><th style="padding:8px;border:1px solid #ddd">Change</th></tr>%s</table>
+<p>---<br>DriftShield</p></body></html>`, now, len(drifts), rows.String())
+
+	text := fmt.Sprintf("DriftShield RDS Drift\nTime: %s\nChanges (%d):\n%s", now, len(drifts), textList.String())
+
+	if err := sendEmail(ctx, fmt.Sprintf("[RDS DRIFT] DriftShield: %d RDS Configuration Change(s)", len(drifts)), text, html); err != nil {
+		fmt.Printf("[EMAIL] RDS drift alert failed: %v\n", err)
+	}
+}
+
 // SendEC2DriftAlerts sends email alerts for EC2 security group drift.
 func SendEC2DriftAlerts(ctx context.Context, drifts []types.EC2Drift) {
 	if len(drifts) == 0 || !config.AWSSESConfig.Enabled {

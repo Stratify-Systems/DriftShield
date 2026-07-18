@@ -45,6 +45,7 @@ var (
 	IAMBaselineFile        = "baselines/iam_baseline.json"
 	CloudTrailBaselineFile = "baselines/cloudtrail_baseline.json"
 	VPCBaselineFile        = "baselines/vpc_baseline.json"
+	RDSBaselineFile        = "baselines/rds_baseline.json"
 )
 
 // GetRegion returns the effective AWS region.

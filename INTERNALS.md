@@ -3,7 +3,7 @@
 ## What DriftShield Does
 
 DriftShield is a CLI security tool that does two things:
-1. Scans AWS resources (S3, EC2, IAM, CloudTrail, VPC) for misconfigurations
+1. Scans AWS resources (S3, EC2, IAM, CloudTrail, VPC, RDS) for misconfigurations
 2. Detects when those configurations change from a known-good state (drift) and optionally auto-remediates them
 
 ---
@@ -23,7 +23,7 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 | `cmd/driftshield` | CLI entry point, command wiring, output formatting |
 | `internal/types` | Shared structs used across all packages |
 | `internal/config` | Static configuration (region, SES, Slack, baseline paths) |
-| `internal/scanner` | Live AWS scanning for S3, EC2, IAM, CloudTrail, and VPC risks |
+| `internal/scanner` | Live AWS scanning for S3, EC2, IAM, CloudTrail, VPC, and RDS risks |
 | `internal/baseline` | Snapshot, compare, and remediate configuration drift |
 | `internal/alerts` | Send findings via AWS SES email and Slack webhook |
 | `internal/display` | Banner printing and port description helpers |
@@ -176,7 +176,35 @@ VPC added/deleted and flow log changes are skipped (manual action required).
 
 ---
 
-### 6. Baseline System (Drift Detection)
+### 6. RDS Security Scanning
+
+**Command:** `driftshield rds`
+
+**File:** `internal/scanner/rds.go`
+
+**How it works:**
+- Calls `DescribeDBInstances` to list all RDS instances in the region
+- For each instance checks 4 security properties directly from the `DBInstance` struct
+
+**Checks and severities:**
+
+| Check | Severity |
+|---|---|
+| Instance is publicly accessible (`PubliclyAccessible: true`) | HIGH |
+| Storage is not encrypted (`StorageEncrypted: false`) | HIGH |
+| Deletion protection is disabled (`DeletionProtection: false`) | MEDIUM |
+| Master username matches a known default (`admin`, `root`, `master`, `postgres`, `mysql`, `oracle`, `sa`, `dbadmin`, `administrator`) | MEDIUM |
+
+**Auto-fix scope:** `driftshield rds fix` auto-remediates via `ModifyDBInstance` with `ApplyImmediately: true`:
+- `PUBLIC_ACCESS_CHANGED` → restores `PubliclyAccessible`
+- `DELETION_PROTECTION_CHANGED` → restores `DeletionProtection`
+- `AUTO_MINOR_UPGRADE_CHANGED` → restores `AutoMinorVersionUpgrade`
+
+Encryption and Multi-AZ changes are skipped — encryption cannot be toggled on an existing instance (requires snapshot + restore).
+
+---
+
+### 7. Baseline System (Drift Detection)
 
 This is the core of DriftShield. It works in two steps.
 
@@ -184,7 +212,7 @@ This is the core of DriftShield. It works in two steps.
 
 **Commands:** `driftshield <service> baseline`
 
-**Files:** `internal/baseline/s3.go`, `ec2.go`, `iam.go`, `cloudtrail.go`, `vpc.go`
+**Files:** `internal/baseline/s3.go`, `ec2.go`, `iam.go`, `cloudtrail.go`, `vpc.go`, `rds.go`
 
 Each baseline command fetches the current live state from AWS and serializes it to a JSON file under `baselines/`:
 
@@ -195,6 +223,7 @@ Each baseline command fetches the current live state from AWS and serializes it 
 | IAM | `baselines/iam_baseline.json` | Password policy + per-user MFA, policies, access key IDs |
 | CloudTrail | `baselines/cloudtrail_baseline.json` | Logging status, multi-region, log validation, S3 bucket, event selectors per trail |
 | VPC | `baselines/vpc_baseline.json` | Flow logs status + per-subnet auto-assign public IP per VPC |
+| RDS | `baselines/rds_baseline.json` | Publicly accessible, storage encrypted, deletion protection, Multi-AZ, auto minor upgrade per instance |
 
 #### Step 2 — Compare Against Baseline
 
@@ -204,7 +233,7 @@ Each baseline command fetches the current live state from AWS and serializes it 
 - Fetches the current live state from AWS
 - Diffs them field by field and reports changes
 
-**Nil-baseline detection:** IAM, CloudTrail, and VPC use a `([]Drift, bool, error)` return signature where the `bool` indicates whether a baseline file exists. This avoids the ambiguity of a nil slice (which could mean "no baseline" or "no drifts") that affects S3/EC2.
+**Nil-baseline detection:** IAM, CloudTrail, VPC, and RDS use a `([]Drift, bool, error)` return signature where the `bool` indicates whether a baseline file exists. This avoids the ambiguity of a nil slice (which could mean "no baseline" or "no drifts") that affects S3/EC2.
 
 **S3 drift types:**
 
@@ -260,6 +289,18 @@ Each baseline command fetches the current live state from AWS and serializes it 
 | `VPC_ADDED` | New VPC created since baseline |
 | `VPC_DELETED` | VPC deleted since baseline |
 
+**RDS drift types:**
+
+| Drift Type | Meaning |
+|---|---|
+| `PUBLIC_ACCESS_CHANGED` | Publicly accessible setting toggled |
+| `ENCRYPTION_CHANGED` | Storage encryption changed |
+| `DELETION_PROTECTION_CHANGED` | Deletion protection toggled |
+| `MULTI_AZ_CHANGED` | Multi-AZ setting changed |
+| `AUTO_MINOR_UPGRADE_CHANGED` | Auto minor version upgrade toggled |
+| `INSTANCE_ADDED` | New RDS instance created since baseline |
+| `INSTANCE_DELETED` | RDS instance deleted since baseline |
+
 ---
 
 ### 7. Auto-Remediation
@@ -290,6 +331,13 @@ Each baseline command fetches the current live state from AWS and serializes it 
 - `SUBNET_PUBLIC_IP_CHANGED` → `ModifySubnetAttribute`
 - All other drift types → skipped
 
+#### RDS Fix (`driftshield rds fix`)
+- Prompts for confirmation
+- `PUBLIC_ACCESS_CHANGED` → `ModifyDBInstance` (ApplyImmediately)
+- `DELETION_PROTECTION_CHANGED` → `ModifyDBInstance` (ApplyImmediately)
+- `AUTO_MINOR_UPGRADE_CHANGED` → `ModifyDBInstance` (ApplyImmediately)
+- `ENCRYPTION_CHANGED`, `MULTI_AZ_CHANGED`, `INSTANCE_ADDED/DELETED` → skipped (encryption requires snapshot + restore)
+
 ---
 
 ### 8. Alert System
@@ -314,6 +362,8 @@ Alerts are dispatched after every scan or drift check if issues are found.
 | `SendCloudTrailDriftAlerts` | `driftshield cloudtrail drift` |
 | `SendVPCAlerts` | `driftshield vpc` — findings |
 | `SendVPCDriftAlerts` | `driftshield vpc drift` |
+| `SendRDSAlerts` | `driftshield rds` — findings |
+| `SendRDSDriftAlerts` | `driftshield rds drift` |
 
 #### Slack Webhook (`internal/alerts/slack.go`)
 
@@ -338,6 +388,7 @@ A static Go file — no environment variables or external config files. Edit it 
 | `IAMBaselineFile` | `baselines/iam_baseline.json` |
 | `CloudTrailBaselineFile` | `baselines/cloudtrail_baseline.json` |
 | `VPCBaselineFile` | `baselines/vpc_baseline.json` |
+| `RDSBaselineFile` | `baselines/rds_baseline.json` |
 
 The `--region` / `-r` flag sets `CurrentRegion` at runtime. `GetRegion()` returns `CurrentRegion` if set, otherwise falls back to `AWSRegion`.
 
@@ -347,7 +398,7 @@ The `--region` / `-r` flag sets `CurrentRegion` at runtime. `GetRegion()` return
 
 **File:** `scripts/scheduled_scan.sh`
 
-A shell wrapper around the compiled binary, designed to be run by cron. It accepts `all`, `s3`, `ec2`, `iam`, `cloudtrail`, or `vpc` as an argument and runs the corresponding scan + drift detection. Output is appended to `logs/cron.log`.
+A shell wrapper around the compiled binary, designed to be run by cron. It accepts `all`, `s3`, `ec2`, `iam`, `cloudtrail`, `vpc`, or `rds` as an argument and runs the corresponding scan + drift detection. Output is appended to `logs/cron.log`.
 
 Example crontab entry to run every hour:
 ```
@@ -375,6 +426,14 @@ ListUsers → for each user:
   ListUserPolicies + GetUserPolicy + ListAccessKeys + GetAccessKeyLastUsed
   → []IAMFinding
 → SendIAMAlerts → SES email
+```
+
+### `driftshield rds drift`
+```
+LoadRDSBaseline() → reads baselines/rds_baseline.json
+GetRDSSnapshot() → DescribeDBInstances → map[instanceID]RDSInstanceSnapshot
+CompareRDSWithBaseline() → diffs field by field → []RDSDrift
+→ SendRDSDriftAlerts() → SES email
 ```
 
 ### `driftshield vpc drift`
@@ -431,4 +490,8 @@ Prompt for confirmation
 | `VPCBaseline` | Timestamp + map of VPC ID → VPCSnapshot |
 | `VPCSnapshot` | VPC ID, default flag, flow logs status, map of subnet ID → VPCSubnetSnapshot |
 | `VPCDrift` | Type, VPC ID, resource, message, old/new value |
+| `RDSFinding` | Type, severity, instance ID, message |
+| `RDSBaseline` | Timestamp + map of instance ID → RDSInstanceSnapshot |
+| `RDSInstanceSnapshot` | Instance ID, engine, publicly accessible, encrypted, deletion protection, Multi-AZ, auto minor upgrade |
+| `RDSDrift` | Type, instance ID, message, old/new value |
 | `RemediationResults` | Fixed, Failed, Skipped lists of RemediationItem |

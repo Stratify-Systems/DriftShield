@@ -243,6 +243,47 @@ type VPCDrift struct {
 	NewValue string `json:"new_value,omitempty"`
 }
 
+// RDSFinding represents a single RDS security finding.
+type RDSFinding struct {
+	Type       string `json:"type"`
+	Severity   string `json:"severity"`
+	InstanceID string `json:"instance_id"`
+	Message    string `json:"message"`
+}
+
+// RDSScanResults holds results from an RDS security scan.
+type RDSScanResults struct {
+	Findings []RDSFinding
+}
+
+// RDSInstanceSnapshot captures security-relevant state of one RDS instance.
+type RDSInstanceSnapshot struct {
+	InstanceID         string `json:"instance_id"`
+	Engine             string `json:"engine"`
+	PubliclyAccessible bool   `json:"publicly_accessible"`
+	StorageEncrypted   bool   `json:"storage_encrypted"`
+	DeletionProtection bool   `json:"deletion_protection"`
+	MasterUsername     string `json:"master_username"`
+	MultiAZ            bool   `json:"multi_az"`
+	AutoMinorUpgrade   bool   `json:"auto_minor_upgrade"`
+}
+
+// RDSBaseline represents the stored RDS baseline.
+type RDSBaseline struct {
+	CreatedAt string                         `json:"created_at"`
+	UpdatedAt string                         `json:"updated_at"`
+	Instances map[string]RDSInstanceSnapshot `json:"instances"`
+}
+
+// RDSDrift represents a single RDS configuration change since baseline.
+type RDSDrift struct {
+	Type       string `json:"type"`
+	InstanceID string `json:"instance_id"`
+	Message    string `json:"message"`
+	OldValue   string `json:"old_value,omitempty"`
+	NewValue   string `json:"new_value,omitempty"`
+}
+
 // S3Baseline represents the stored S3 baseline.
 type S3Baseline struct {
 	CreatedAt string                     `json:"created_at"`

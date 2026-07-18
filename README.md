@@ -1,6 +1,6 @@
 # DriftShield
 
-A cloud security tool that detects S3, EC2, IAM, CloudTrail, and VPC misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
+A cloud security tool that detects S3, EC2, IAM, CloudTrail, VPC, and RDS misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
 
 Built in Go for fast, single-binary distribution with zero runtime dependencies.
 
@@ -11,6 +11,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **IAM Security Scanning**: Detects root account misconfigurations, missing MFA, admin policy abuse, and stale access keys
 - **CloudTrail Security Scanning**: Detects disabled logging, missing multi-region trails, and log validation issues
 - **VPC Security Scanning**: Detects default VPC usage, missing flow logs, open NACLs, and subnets with auto-assign public IP
+- **RDS Security Scanning**: Detects publicly accessible instances, unencrypted storage, missing deletion protection, and default master usernames
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
@@ -34,13 +35,15 @@ DriftShield/
 │   │   ├── ec2.go               # EC2 security group scanning
 │   │   ├── iam.go               # IAM security scanning
 │   │   ├── cloudtrail.go        # CloudTrail security scanning
-│   │   └── vpc.go               # VPC security scanning
+│   │   ├── vpc.go               # VPC security scanning
+│   │   └── rds.go               # RDS security scanning
 │   ├── baseline/
 │   │   ├── s3.go                # S3 baseline management
 │   │   ├── ec2.go               # EC2 baseline management
 │   │   ├── iam.go               # IAM baseline management
 │   │   ├── cloudtrail.go        # CloudTrail baseline management
-│   │   └── vpc.go               # VPC baseline management
+│   │   ├── vpc.go               # VPC baseline management
+│   │   └── rds.go               # RDS baseline management
 │   └── alerts/
 │       ├── ses.go               # AWS SES email alerts
 │       └── slack.go             # Slack webhook alerts
@@ -49,7 +52,8 @@ DriftShield/
 │   ├── ec2_baseline.json        # EC2 baseline snapshot
 │   ├── iam_baseline.json        # IAM baseline snapshot
 │   ├── cloudtrail_baseline.json # CloudTrail baseline snapshot
-│   └── vpc_baseline.json        # VPC baseline snapshot
+│   ├── vpc_baseline.json        # VPC baseline snapshot
+│   └── rds_baseline.json        # RDS baseline snapshot
 ├── scripts/
 │   └── scheduled_scan.sh        # Cron job script
 ├── logs/
@@ -134,9 +138,17 @@ driftshield vpc drift             # Detect VPC configuration drift
 driftshield vpc fix               # Fix drifted VPC configurations
 ```
 
+### RDS Commands
+```bash
+driftshield rds                   # Run RDS security scan
+driftshield rds baseline          # Create RDS baseline
+driftshield rds drift             # Detect RDS configuration drift
+driftshield rds fix               # Fix drifted RDS configurations
+```
+
 ### Other Commands
 ```bash
-driftshield all                   # Run S3, EC2, IAM, CloudTrail, and VPC scans
+driftshield all                   # Run S3, EC2, IAM, CloudTrail, VPC, and RDS scans
 driftshield --help                # Show help message
 driftshield --version             # Show version
 driftshield completion bash       # Generate bash completion script
@@ -151,6 +163,7 @@ go run ./cmd/driftshield ec2 drift
 go run ./cmd/driftshield iam
 go run ./cmd/driftshield cloudtrail
 go run ./cmd/driftshield vpc
+go run ./cmd/driftshield rds
 go run ./cmd/driftshield all
 ```
 
@@ -203,6 +216,17 @@ The VPC scanner detects these issues:
 | VPC has no flow logs enabled | HIGH |
 | NACL allows all inbound traffic from internet | HIGH |
 | Subnet auto-assigns public IPs on launch | MEDIUM |
+
+## RDS Security Checks
+
+The RDS scanner detects these issues:
+
+| Check | Severity |
+|-------|----------|
+| Instance is publicly accessible | HIGH |
+| Storage is not encrypted | HIGH |
+| Deletion protection is disabled | MEDIUM |
+| Default master username in use (`admin`, `root`, `master`, `postgres`, etc.) | MEDIUM |
 
 ## EC2 Security Checks
 
@@ -329,6 +353,14 @@ tail -f logs/cron.log
         {
             "Effect": "Allow",
             "Action": [
+                "rds:DescribeDBInstances",
+                "rds:ModifyDBInstance"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
                 "ses:SendEmail",
                 "ses:SendRawEmail"
             ],
@@ -344,7 +376,7 @@ Edit `internal/config/config.go` to configure:
 
 - **AWSSESConfig**: Email alert settings (sender, recipient, region)
 - **SlackConfig**: Slack webhook settings
-- **BaselineFile / EC2BaselineFile / IAMBaselineFile / CloudTrailBaselineFile / VPCBaselineFile**: Baseline storage locations (all under `baselines/`)
+- **BaselineFile / EC2BaselineFile / IAMBaselineFile / CloudTrailBaselineFile / VPCBaselineFile / RDSBaselineFile**: Baseline storage locations (all under `baselines/`)
 - **AWSRegion**: Default AWS region
 
 ## Build Targets
