@@ -314,9 +314,10 @@ Each baseline command fetches the current live state from AWS and serializes it 
 The traditional `baseline` commands pull current AWS state. If the state is insecure, DriftShield enforces insecure state. The AI Designer flips this by generating a *secure-by-default* baseline from scratch.
 
 1. **Context Gathering:** `survey/v2` prompts the user for context (e.g., Application Type, Environment, Public S3 needs, MFA requirements).
-2. **LLM Invocation:** Calls the Groq API (LLaMA 3) via standard `net/http` to act as a Cloud Security Architect.
-3. **Structured JSON Output:** The system prompt explicitly enforces a JSON schema that perfectly mirrors the internal DriftShield `types` (e.g., `S3Baseline`, `EC2Baseline`).
-4. **Approval & Split:** The AI returns a unified baseline + recommendations. Upon user approval, `generator.go` splits the unified JSON into individual service files (`s3_baseline.json`, `ec2_baseline.json`, etc.) using `baseline.SaveBaseline()`.
+2. **Resource Snapshotting:** Before generating, DriftShield quietly scans the AWS environment to fetch the exact IDs and names of existing S3 Buckets, EC2 Security Groups, IAM Users, CloudTrails, VPCs, and RDS instances.
+3. **LLM Invocation:** Calls the Groq API (LLaMA 3) via standard `net/http` to act as a Cloud Security Architect. The prompt receives the existing resource IDs so the AI perfectly applies its security recommendations to the user's actual infrastructure.
+4. **Structured JSON Output:** The system prompt explicitly enforces a JSON schema that perfectly mirrors all 6 internal DriftShield `types` (`S3Baseline`, `EC2Baseline`, `IAMBaseline`, `CloudTrailBaseline`, `VPCBaseline`, `RDSBaseline`).
+5. **Approval & Split:** The AI returns a unified baseline + recommendations. Upon user approval, `generator.go` splits the unified JSON into individual service files (`s3_baseline.json`, `ec2_baseline.json`, etc.) using `baseline.SaveBaseline()` and saves them into an isolated `ai-baselines/` directory for safe review.
 
 **Important Design Principle:** The LLM is **never** used in the scanning or enforcement loop. It is strictly limited to generating the static configuration JSON upfront. This ensures DriftShield's actual security engine remains 100% deterministic, reliable, and fast.
 

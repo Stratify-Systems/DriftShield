@@ -197,9 +197,10 @@ func RemediateVPCDrift(ctx context.Context, drifts []types.VPCDrift) (*types.Rem
 			}
 
 		default:
-			fmt.Printf("[SKIP]    VPC '%s' — drift type '%s' requires manual action\n", drift.VPCID, drift.Type)
+			msg := "Creating/deleting VPCs or Subnets, and toggling Flow Logs are complex operations that may break networking. Skipped to prevent outages. Please resolve manually or update the baseline."
+			fmt.Printf("[SKIP]    VPC '%s' — drift type '%s'\n          %s\n", drift.VPCID, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
-				Name: drift.Resource, Type: drift.Type, Reason: "Manual action required",
+				Name: drift.Resource, Type: drift.Type, Reason: msg,
 			})
 		}
 	}

@@ -304,10 +304,11 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 			}
 
 		default:
-			fmt.Printf("[SKIP]    Trail '%s' — drift type '%s' requires manual action\n", drift.TrailName, drift.Type)
+			msg := "Creating, deleting, or re-routing trails is highly disruptive and therefore skipped. Please resolve manually via the AWS Console or update your baseline."
+			fmt.Printf("[SKIP]    Trail '%s' — drift type '%s'\n          %s\n", drift.TrailName, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				Name: drift.TrailName, Type: drift.Type,
-				Reason: "Manual action required",
+				Reason: msg,
 			})
 		}
 	}

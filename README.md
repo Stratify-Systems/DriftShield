@@ -208,11 +208,14 @@ The `driftshield ai baseline` command launches an interactive session to generat
 
 Instead of creating a baseline from your *current* AWS state (which might already be insecure), the AI acts as a virtual Cloud Security Architect and generates a **secure-by-default** JSON baseline enforcing best practices for your specific use case. It uses the Groq API (LLaMA 3) under the hood.
 
+Before generating the baseline, DriftShield seamlessly scans your live AWS environment (all 6 services) and feeds the exact names of your existing S3 buckets, EC2 Security Groups, IAM Users, CloudTrails, VPCs, and RDS instances to the AI. This ensures the AI perfectly tailors the secure configurations to your actual infrastructure rather than hallucinating random resource names.
+
 1. Ensure `GROQ_API_KEY` is set in your `.env` file or environment.
 2. Run `driftshield ai baseline`.
 3. Answer the interactive prompts.
 4. Review the AI's recommendations.
-5. Approve to generate and save the `baselines/*.json` files.
+5. Approve to generate and save the `ai-baselines/*.json` files.
+6. Once reviewed, move them to `baselines/` to begin enforcing them with `driftshield all drift`.
 
 ## IAM Security Checks
 

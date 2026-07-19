@@ -223,9 +223,10 @@ func RemediateRDSDrift(ctx context.Context, drifts []types.RDSDrift) (*types.Rem
 			}
 
 		default:
-			fmt.Printf("[SKIP]    Instance '%s' — drift type '%s' requires manual action\n", drift.InstanceID, drift.Type)
+			msg := "Modifying Encryption, Multi-AZ, or Adding/Deleting instances requires complex orchestration (e.g., snapshot & restore) and is therefore skipped to prevent database downtime. Please resolve manually or update the baseline."
+			fmt.Printf("[SKIP]    Instance '%s' — drift type '%s'\n          %s\n", drift.InstanceID, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
-				Name: drift.InstanceID, Type: drift.Type, Reason: "Manual action required",
+				Name: drift.InstanceID, Type: drift.Type, Reason: msg,
 			})
 		}
 	}

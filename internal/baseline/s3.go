@@ -270,9 +270,10 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 		bucket := drift.Bucket
 
 		if drift.Type == "NEW_BUCKET" || drift.Type == "BUCKET_DELETED" {
-			fmt.Printf("[SKIP]    %s - %s (manual action required)\n", bucket, drift.Type)
+			msg := "Creating or deleting entire AWS buckets is skipped to prevent accidental data destruction or state conflicts. Please resolve manually or update the baseline."
+			fmt.Printf("[SKIP]    %s - %s\n          %s\n", bucket, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
-				Bucket: bucket, Type: drift.Type, Reason: "Manual action required",
+				Bucket: bucket, Type: drift.Type, Reason: msg,
 			})
 			continue
 		}
