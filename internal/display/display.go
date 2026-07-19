@@ -31,8 +31,13 @@ var PortServices = map[int32]string{
 	9200: "Elasticsearch", 27017: "MongoDB",
 }
 
+var MuteBanner bool
+
 // PrintBanner prints a formatted banner with the given title.
 func PrintBanner(title string) {
+	if MuteBanner {
+		return
+	}
 	fmt.Println()
 	cTitle.Println(`    ____       _  __ __  _____ __    _      __    __`)
 	cTitle.Println(`   / __ \_____(_)/ // /_/ ___// /_  (_)__  / /___/ /`)

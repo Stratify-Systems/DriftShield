@@ -119,6 +119,11 @@ func init() {
 		Short: "Run S3, EC2, IAM, and CloudTrail scans",
 		Run:   func(cmd *cobra.Command, args []string) { runAllScans() },
 	}
+	allCmd.AddCommand(
+		&cobra.Command{Use: "baseline", Short: "Create baseline for all services", Run: func(cmd *cobra.Command, args []string) { runAllBaselines() }},
+		&cobra.Command{Use: "drift", Short: "Detect drift for all services", Run: func(cmd *cobra.Command, args []string) { runAllDrifts() }},
+		&cobra.Command{Use: "fix", Short: "Fix drift/risks for all services", Run: func(cmd *cobra.Command, args []string) { runAllFixes() }},
+	)
 
 	// AI command
 	aiCmd := &cobra.Command{
@@ -1003,9 +1008,69 @@ func runAllScans() {
 	total := s3Risk + ec2Risk + iamFindings + ctFindings + rdsFindings + vpcFindings
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
+
+		// Send alerts for any found risks/findings
+		if s3Risk > 0 {
+			alerts.SendS3Alerts(ctx, s3Results.AtRisk)
+		}
+		if ec2Risk > 0 {
+			alerts.SendEC2Alerts(ctx, ec2Results.AtRisk, ec2Results.Details)
+		}
+		if iamFindings > 0 {
+			alerts.SendIAMAlerts(ctx, iamResults.Findings)
+		}
+		if ctFindings > 0 {
+			alerts.SendCloudTrailAlerts(ctx, ctResults.Findings)
+		}
+		if rdsFindings > 0 {
+			alerts.SendRDSAlerts(ctx, rdsResults.Findings)
+		}
+		if vpcFindings > 0 {
+			alerts.SendVPCAlerts(ctx, vpcResults.Findings)
+		}
+
 	} else {
 		fmt.Println("\n[+] All resources are secure!")
 	}
+}
+
+func runAllBaselines() {
+	display.PrintBanner("CREATE ALL BASELINES")
+	display.MuteBanner = true
+	defer func() { display.MuteBanner = false }()
+
+	runS3Baseline()
+	runEC2Baseline()
+	runIAMBaseline()
+	runCloudTrailBaseline()
+	runRDSBaseline()
+	runVPCBaseline()
+}
+
+func runAllDrifts() {
+	display.PrintBanner("FULL DRIFT DETECTION")
+	display.MuteBanner = true
+	defer func() { display.MuteBanner = false }()
+
+	runS3Drift()
+	runEC2Drift()
+	runIAMDrift()
+	runCloudTrailDrift()
+	runRDSDrift()
+	runVPCDrift()
+}
+
+func runAllFixes() {
+	display.PrintBanner("FULL REMEDIATION")
+	display.MuteBanner = true
+	defer func() { display.MuteBanner = false }()
+
+	runS3Fix()
+	runEC2Fix()
+	runIAMFix()
+	runCloudTrailFix()
+	runRDSFix()
+	runVPCFix()
 }
 
 // ──────────────────────────────────────────────────────────────
