@@ -35,6 +35,7 @@ logs/*.log
 
 # Generated baseline files
 /baselines/*.json
+/ai-baselines/*.json
 
 # Reports
 reports/*.html
