@@ -12,6 +12,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **CloudTrail Security Scanning**: Detects disabled logging, missing multi-region trails, and log validation issues
 - **VPC Security Scanning**: Detects default VPC usage, missing flow logs, open NACLs, and subnets with auto-assign public IP
 - **RDS Security Scanning**: Detects publicly accessible instances, unencrypted storage, missing deletion protection, and default master usernames
+- **AI Baseline Designer**: Interactively generates secure-by-default baselines based on application context using Groq LLaMA 3
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
@@ -45,6 +46,11 @@ DriftShield/
 │   │   ├── cloudtrail.go        # CloudTrail baseline management
 │   │   ├── vpc.go               # VPC baseline management
 │   │   └── rds.go               # RDS baseline management
+│   ├── ai/
+│   │   ├── client.go            # Groq API client
+│   │   ├── conversation.go      # Interactive CLI prompts
+│   │   ├── generator.go         # Baseline generation logic
+│   │   └── prompt.go            # LLM prompt construction
 │   └── alerts/
 │       ├── ses.go               # AWS SES email alerts
 │       ├── sns.go               # AWS SNS alerts
@@ -152,6 +158,11 @@ driftshield rds fix               # Fix drifted RDS configurations
 driftshield rds -r us-east-1      # Scan specific region
 ```
 
+### AI Commands
+```bash
+driftshield ai baseline           # Generate secure baseline interactively using AI
+```
+
 ### Other Commands
 ```bash
 driftshield all                   # Run S3, EC2, IAM, CloudTrail, VPC, and RDS scans
@@ -190,6 +201,18 @@ driftshield all -r eu-west-1
 driftshield rds drift --region ap-southeast-1
 driftshield ec2 fix -r us-west-2
 ```
+
+## AI Baseline Designer
+
+The `driftshield ai baseline` command launches an interactive session to generate a security baseline tailored to your application's context (e.g. REST API, Static Website). 
+
+Instead of creating a baseline from your *current* AWS state (which might already be insecure), the AI acts as a virtual Cloud Security Architect and generates a **secure-by-default** JSON baseline enforcing best practices for your specific use case. It uses the Groq API (LLaMA 3) under the hood.
+
+1. Ensure `GROQ_API_KEY` is set in your `.env` file or environment.
+2. Run `driftshield ai baseline`.
+3. Answer the interactive prompts.
+4. Review the AI's recommendations.
+5. Approve to generate and save the `baselines/*.json` files.
 
 ## IAM Security Checks
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/SuryaTK2007/DriftShield/internal/ai"
 	"github.com/SuryaTK2007/DriftShield/internal/alerts"
 	"github.com/SuryaTK2007/DriftShield/internal/baseline"
 	"github.com/SuryaTK2007/DriftShield/internal/config"
@@ -119,7 +120,25 @@ func init() {
 		Run:   func(cmd *cobra.Command, args []string) { runAllScans() },
 	}
 
-	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, rdsCmd, vpcCmd, allCmd)
+	// AI command
+	aiCmd := &cobra.Command{
+		Use:   "ai",
+		Short: "AI-powered utilities",
+	}
+	aiCmd.AddCommand(
+		&cobra.Command{
+			Use:   "baseline",
+			Short: "Generate secure baselines interactively using AI",
+			Run: func(cmd *cobra.Command, args []string) {
+				ctx := context.Background()
+				if err := ai.RunDesigner(ctx); err != nil {
+					fmt.Printf("\n[ERROR] %v\n", err)
+				}
+			},
+		},
+	)
+
+	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, rdsCmd, vpcCmd, allCmd, aiCmd)
 }
 
 // ──────────────────────────────────────────────────────────────

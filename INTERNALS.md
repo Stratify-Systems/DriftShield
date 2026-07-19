@@ -25,6 +25,7 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 | `internal/config` | Static configuration (region, SES, Slack, baseline paths) |
 | `internal/scanner` | Live AWS scanning for S3, EC2, IAM, CloudTrail, VPC, and RDS risks |
 | `internal/baseline` | Snapshot, compare, and remediate configuration drift |
+| `internal/ai` | Generate secure-by-default JSON baselines interactively via Groq LLaMA 3 |
 | `internal/alerts` | Send findings via AWS SES email, SNS, and Slack webhook |
 | `internal/display` | Banner printing and port description helpers |
 
@@ -303,7 +304,25 @@ Each baseline command fetches the current live state from AWS and serializes it 
 
 ---
 
-### 7. Auto-Remediation
+### 8. AI Baseline Designer
+
+**Command:** `driftshield ai baseline`
+
+**Files:** `internal/ai/client.go`, `conversation.go`, `generator.go`, `prompt.go`, `schema.go`
+
+**How it works:**
+The traditional `baseline` commands pull current AWS state. If the state is insecure, DriftShield enforces insecure state. The AI Designer flips this by generating a *secure-by-default* baseline from scratch.
+
+1. **Context Gathering:** `survey/v2` prompts the user for context (e.g., Application Type, Environment, Public S3 needs, MFA requirements).
+2. **LLM Invocation:** Calls the Groq API (LLaMA 3) via standard `net/http` to act as a Cloud Security Architect.
+3. **Structured JSON Output:** The system prompt explicitly enforces a JSON schema that perfectly mirrors the internal DriftShield `types` (e.g., `S3Baseline`, `EC2Baseline`).
+4. **Approval & Split:** The AI returns a unified baseline + recommendations. Upon user approval, `generator.go` splits the unified JSON into individual service files (`s3_baseline.json`, `ec2_baseline.json`, etc.) using `baseline.SaveBaseline()`.
+
+**Important Design Principle:** The LLM is **never** used in the scanning or enforcement loop. It is strictly limited to generating the static configuration JSON upfront. This ensures DriftShield's actual security engine remains 100% deterministic, reliable, and fast.
+
+---
+
+### 9. Auto-Remediation
 
 #### S3 Fix (`driftshield s3 fix`)
 - `PUBLIC_ACCESS_CHANGED` → `PutPublicAccessBlock`
@@ -340,7 +359,7 @@ Each baseline command fetches the current live state from AWS and serializes it 
 
 ---
 
-### 8. Alert System
+### 10. Alert System
 
 Alerts are dispatched after every scan or drift check if issues are found. All three channels (SES, SNS, Slack) are called from the same `Send*` functions — each channel checks its own `Enabled` flag independently.
 
@@ -404,7 +423,7 @@ Alerts are dispatched after every scan or drift check if issues are found. All t
 
 ---
 
-### 9. Configuration
+### 11. Configuration
 
 **File:** `internal/config/config.go`
 
@@ -454,7 +473,7 @@ This means `--region` works uniformly across scan, baseline, drift, and fix oper
 
 ---
 
-### 10. Scheduled Scanning
+### 12. Scheduled Scanning
 
 **File:** `scripts/scheduled_scan.sh`
 
