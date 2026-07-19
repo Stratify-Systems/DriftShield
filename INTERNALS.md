@@ -526,6 +526,14 @@ CompareVPCWithBaseline() → diffs field by field → []VPCDrift
 → SendVPCDriftAlerts() → SES email
 ```
 
+### `driftshield all drift`
+```
+runAllDrifts() in main.go
+Mutes display banner
+Calls runS3Drift(), runEC2Drift(), runIAMDrift(), runCloudTrailDrift(), runRDSDrift(), runVPCDrift()
+Unmutes display banner
+```
+
 ### `driftshield cloudtrail fix`
 ```
 CompareCloudTrailWithBaseline() → []CloudTrailDrift
@@ -544,6 +552,15 @@ Prompt for confirmation
   → for each SG: for each rule open to 0.0.0.0/0 on risky port
     → RevokeSecurityGroupIngress
   → report Fixed / Failed / Skipped
+```
+
+### `driftshield all`
+```
+runAllScans() in main.go
+Calls ScanAllBuckets, ScanSecurityGroups, ScanIAM, ScanCloudTrail, ScanRDS, ScanVPC
+Collects total risks across all 6 services
+If total > 0:
+  SendS3Alerts, SendEC2Alerts, SendIAMAlerts, SendCloudTrailAlerts, SendRDSAlerts, SendVPCAlerts
 ```
 
 ---

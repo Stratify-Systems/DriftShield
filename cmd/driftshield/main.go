@@ -345,26 +345,25 @@ func runEC2Fix() {
 	ctx := context.Background()
 	display.PrintBanner("EC2 AUTO-FIX")
 	fmt.Printf("Started at: %s\n\n", now())
-	fmt.Println("This will REMOVE risky inbound rules that allow access from 0.0.0.0/0:")
-	fmt.Println("  - SSH (22), RDP (3389)")
-	fmt.Println("  - Database ports (MySQL, PostgreSQL, MongoDB, Redis, etc.)")
-	fmt.Println("  - All traffic / All ports")
-	fmt.Printf("\n%s\n\n", strings.Repeat("-", 60))
-	fmt.Println("[!] WARNING: This will modify your security groups!")
-	fmt.Print("    Continue? (yes/no): ")
 
-	reader := bufio.NewReader(os.Stdin)
-	resp, _ := reader.ReadString('\n')
-	resp = strings.TrimSpace(strings.ToLower(resp))
-
-	if resp != "yes" && resp != "y" {
-		fmt.Println("\n[CANCELLED] No changes made.")
+	drifts, err := baseline.CompareEC2WithBaseline(ctx)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	if drifts == nil {
+		fmt.Println("\n[!] No EC2 baseline found.")
+		fmt.Println("    Run 'driftshield ec2 baseline' first to create one.")
+		return
+	}
+	if len(drifts) == 0 {
+		fmt.Println("\n[+] No drifts detected. Nothing to fix.")
 		return
 	}
 
-	fmt.Println("\nScanning and fixing risky rules...")
+	fmt.Printf("\nFound %d drift(s). Starting remediation...\n\n", len(drifts))
 
-	results, err := scanner.RemediateEC2Risks(ctx, false)
+	results, err := baseline.RemediateEC2Drift(ctx, drifts)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
@@ -375,20 +374,6 @@ func runEC2Fix() {
 		fmt.Sprintf("Failed:   %d", len(results.Failed)),
 		fmt.Sprintf("Skipped:  %d", len(results.Skipped)),
 	})
-
-	if len(results.Fixed) > 0 {
-		fmt.Println("\n[+] Risky rules removed. Run 'driftshield ec2' to verify.")
-	}
-	if len(results.Failed) > 0 {
-		fmt.Println("\n[!] Some fixes failed. Check IAM permissions:")
-		fmt.Println("    - ec2:RevokeSecurityGroupIngress")
-	}
-	if len(results.Skipped) > 0 {
-		fmt.Println("\n[!] Skipped security groups (manual review recommended):")
-		for _, item := range results.Skipped {
-			fmt.Printf("    - %s (%s): %s\n", item.Name, item.SecurityGroup, item.Reason)
-		}
-	}
 }
 
 // ──────────────────────────────────────────────────────────────

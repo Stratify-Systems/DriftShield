@@ -3,13 +3,16 @@ package baseline
 import (
 	"context"
 	"fmt"
-	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"sort"
+	"strings"
 	"time"
+
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/SuryaTK2007/DriftShield/internal/config"
 	"github.com/SuryaTK2007/DriftShield/internal/scanner"
@@ -196,4 +199,102 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 	}
 
 	return drifts, nil
+}
+
+// RemediateEC2Drift reverts drifted security groups back to their baseline rules.
+func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift) (*types.RemediationResults, error) {
+	if len(drifts) == 0 {
+		fmt.Println(display.INFO() + "No drifts to remediate.")
+		return &types.RemediationResults{}, nil
+	}
+
+	client, err := newEC2Client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &types.RemediationResults{}
+	fmt.Println("Starting remediation...")
+
+	for _, drift := range drifts {
+		sgID := drift.SecurityGroup
+		sgName := drift.Name
+
+		if drift.Type == "NEW_SECURITY_GROUP" || drift.Type == "SECURITY_GROUP_DELETED" {
+			msg := "Creating or deleting security groups is skipped to prevent accidental lockouts or infrastructure disruption. Please resolve manually or update the baseline."
+			fmt.Printf(display.SKIP()+"%s (%s) - %s\n          %s\n", sgName, sgID, drift.Type, msg)
+			res.Skipped = append(res.Skipped, types.RemediationItem{
+				SecurityGroup: sgID, Name: sgName, Type: drift.Type, Reason: msg,
+			})
+			continue
+		}
+
+		if drift.Type == "RULES_CHANGED" {
+			// Revoke added rules
+			for _, rule := range drift.AddedRules {
+				desc := fmt.Sprintf("Added: %s %d-%d from %v", rule.Protocol, rule.FromPort, rule.ToPort, rule.Sources)
+				perm := buildIpPermission(rule)
+				_, rErr := client.RevokeSecurityGroupIngress(ctx, &ec2.RevokeSecurityGroupIngressInput{
+					GroupId: aws.String(sgID), IpPermissions: []ec2types.IpPermission{perm},
+				})
+				if rErr != nil {
+					fmt.Printf(display.FAILED()+"%s - Could not revoke rule: %v\n", sgName, rErr)
+					res.Failed = append(res.Failed, types.RemediationItem{
+						SecurityGroup: sgID, Name: sgName, Type: drift.Type, Error: rErr.Error(),
+					})
+				} else {
+					fmt.Printf(display.FIXED()+"%s - Revoked rule to restore baseline\n", sgName)
+					res.Fixed = append(res.Fixed, types.RemediationItem{
+						SecurityGroup: sgID, Name: sgName, Type: drift.Type, RuleRemoved: desc,
+					})
+				}
+			}
+
+			// Authorize removed rules
+			for _, rule := range drift.RemovedRules {
+				desc := fmt.Sprintf("Removed: %s %d-%d from %v", rule.Protocol, rule.FromPort, rule.ToPort, rule.Sources)
+				perm := buildIpPermission(rule)
+				_, rErr := client.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
+					GroupId: aws.String(sgID), IpPermissions: []ec2types.IpPermission{perm},
+				})
+				if rErr != nil {
+					fmt.Printf(display.FAILED()+"%s - Could not authorize rule: %v\n", sgName, rErr)
+					res.Failed = append(res.Failed, types.RemediationItem{
+						SecurityGroup: sgID, Name: sgName, Type: drift.Type, Error: rErr.Error(),
+					})
+				} else {
+					fmt.Printf(display.FIXED()+"%s - Authorized rule to restore baseline\n", sgName)
+					res.Fixed = append(res.Fixed, types.RemediationItem{
+						SecurityGroup: sgID, Name: sgName, Type: drift.Type, RuleRemoved: desc,
+					})
+				}
+			}
+		}
+	}
+
+	return res, nil
+}
+
+func buildIpPermission(rule types.InboundRule) ec2types.IpPermission {
+	perm := ec2types.IpPermission{
+		IpProtocol: aws.String(rule.Protocol),
+		FromPort:   aws.Int32(rule.FromPort),
+		ToPort:     aws.Int32(rule.ToPort),
+	}
+	var ipv4 []ec2types.IpRange
+	var ipv6 []ec2types.Ipv6Range
+	for _, src := range rule.Sources {
+		if strings.Contains(src, ":") {
+			ipv6 = append(ipv6, ec2types.Ipv6Range{CidrIpv6: aws.String(src)})
+		} else {
+			ipv4 = append(ipv4, ec2types.IpRange{CidrIp: aws.String(src)})
+		}
+	}
+	if len(ipv4) > 0 {
+		perm.IpRanges = ipv4
+	}
+	if len(ipv6) > 0 {
+		perm.Ipv6Ranges = ipv6
+	}
+	return perm
 }

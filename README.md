@@ -166,6 +166,9 @@ driftshield ai baseline           # Generate secure baseline interactively using
 ### Other Commands
 ```bash
 driftshield all                   # Run S3, EC2, IAM, CloudTrail, VPC, and RDS scans
+driftshield all baseline          # Create baselines for all 6 services
+driftshield all drift             # Detect drift for all 6 services
+driftshield all fix               # Fix drifted configurations across all services
 driftshield all -r us-east-1      # Run all scans in a specific region
 driftshield --help                # Show help message
 driftshield --version             # Show version
