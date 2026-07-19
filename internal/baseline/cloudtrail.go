@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -149,7 +150,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 				Type: "TRAIL_ADDED", TrailName: name,
 				Message: fmt.Sprintf("Trail '%s' was added since baseline", name),
 			})
-			fmt.Printf("[DRIFT]    Trail '%s' added\n", name)
+			fmt.Printf(display.DRIFT()+"Trail '%s' added\n", name)
 			continue
 		}
 
@@ -165,7 +166,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 					OldValue: fmt.Sprintf("%v", blTrail.IsLogging),
 					NewValue: fmt.Sprintf("%v", currentLogging),
 				})
-				fmt.Printf("[DRIFT]    Trail '%s' logging: %v -> %v\n", name, blTrail.IsLogging, currentLogging)
+				fmt.Printf(display.DRIFT()+"Trail '%s' logging: %v -> %v\n", name, blTrail.IsLogging, currentLogging)
 				trailDrifted = true
 			}
 		}
@@ -178,7 +179,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 				OldValue: fmt.Sprintf("%v", blTrail.LogValidation),
 				NewValue: fmt.Sprintf("%v", currentValidation),
 			})
-			fmt.Printf("[DRIFT]    Trail '%s' log validation: %v -> %v\n", name, blTrail.LogValidation, currentValidation)
+			fmt.Printf(display.DRIFT()+"Trail '%s' log validation: %v -> %v\n", name, blTrail.LogValidation, currentValidation)
 			trailDrifted = true
 		}
 
@@ -190,7 +191,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 				OldValue: fmt.Sprintf("%v", blTrail.IsMultiRegion),
 				NewValue: fmt.Sprintf("%v", currentMultiRegion),
 			})
-			fmt.Printf("[DRIFT]    Trail '%s' multi-region: %v -> %v\n", name, blTrail.IsMultiRegion, currentMultiRegion)
+			fmt.Printf(display.DRIFT()+"Trail '%s' multi-region: %v -> %v\n", name, blTrail.IsMultiRegion, currentMultiRegion)
 			trailDrifted = true
 		}
 
@@ -202,7 +203,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 				OldValue: blTrail.S3Bucket,
 				NewValue: currentBucket,
 			})
-			fmt.Printf("[DRIFT]    Trail '%s' S3 bucket: %s -> %s\n", name, blTrail.S3Bucket, currentBucket)
+			fmt.Printf(display.DRIFT()+"Trail '%s' S3 bucket: %s -> %s\n", name, blTrail.S3Bucket, currentBucket)
 			trailDrifted = true
 		}
 
@@ -218,13 +219,13 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 					OldValue: blTrail.ReadWriteType,
 					NewValue: currentRW,
 				})
-				fmt.Printf("[DRIFT]    Trail '%s' read/write type: %s -> %s\n", name, blTrail.ReadWriteType, currentRW)
+				fmt.Printf(display.DRIFT()+"Trail '%s' read/write type: %s -> %s\n", name, blTrail.ReadWriteType, currentRW)
 				trailDrifted = true
 			}
 		}
 
 		if !trailDrifted {
-			fmt.Printf("[OK]       Trail '%s' unchanged\n", name)
+			fmt.Printf(display.OK()+"Trail '%s' unchanged\n", name)
 		}
 	}
 
@@ -234,7 +235,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 				Type: "TRAIL_DELETED", TrailName: name,
 				Message: fmt.Sprintf("Trail '%s' was deleted since baseline", name),
 			})
-			fmt.Printf("[DRIFT]    Trail '%s' deleted\n", name)
+			fmt.Printf(display.DRIFT()+"Trail '%s' deleted\n", name)
 		}
 	}
 
@@ -267,10 +268,10 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 					Name: aws.String(drift.TrailName),
 				})
 				if fErr != nil {
-					fmt.Printf("[FAILED]  Trail '%s' — could not re-enable logging: %v\n", drift.TrailName, fErr)
+					fmt.Printf(display.FAILED()+"Trail '%s' — could not re-enable logging: %v\n", drift.TrailName, fErr)
 					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
 				} else {
-					fmt.Printf("[FIXED]   Trail '%s' — logging re-enabled\n", drift.TrailName)
+					fmt.Printf(display.FIXED()+"Trail '%s' — logging re-enabled\n", drift.TrailName)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
 				}
 			} else {
@@ -278,10 +279,10 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 					Name: aws.String(drift.TrailName),
 				})
 				if fErr != nil {
-					fmt.Printf("[FAILED]  Trail '%s' — could not stop logging: %v\n", drift.TrailName, fErr)
+					fmt.Printf(display.FAILED()+"Trail '%s' — could not stop logging: %v\n", drift.TrailName, fErr)
 					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
 				} else {
-					fmt.Printf("[FIXED]   Trail '%s' — logging stopped (restored to baseline)\n", drift.TrailName)
+					fmt.Printf(display.FIXED()+"Trail '%s' — logging stopped (restored to baseline)\n", drift.TrailName)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
 				}
 			}
@@ -296,16 +297,16 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 				EnableLogFileValidation: aws.Bool(blTrail.LogValidation),
 			})
 			if fErr != nil {
-				fmt.Printf("[FAILED]  Trail '%s' — could not restore log validation: %v\n", drift.TrailName, fErr)
+				fmt.Printf(display.FAILED()+"Trail '%s' — could not restore log validation: %v\n", drift.TrailName, fErr)
 				res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
 			} else {
-				fmt.Printf("[FIXED]   Trail '%s' — log file validation restored to %v\n", drift.TrailName, blTrail.LogValidation)
+				fmt.Printf(display.FIXED()+"Trail '%s' — log file validation restored to %v\n", drift.TrailName, blTrail.LogValidation)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
 			}
 
 		default:
 			msg := "Creating, deleting, or re-routing trails is highly disruptive and therefore skipped. Please resolve manually via the AWS Console or update your baseline."
-			fmt.Printf("[SKIP]    Trail '%s' — drift type '%s'\n          %s\n", drift.TrailName, drift.Type, msg)
+			fmt.Printf(display.SKIP()+"Trail '%s' — drift type '%s'\n          %s\n", drift.TrailName, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				Name: drift.TrailName, Type: drift.Type,
 				Reason: msg,

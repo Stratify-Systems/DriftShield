@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -256,14 +257,14 @@ func RemediateEC2Risks(ctx context.Context, dryRun bool) (*types.RemediationResu
 	for _, sg := range out.SecurityGroups {
 		sgID := aws.ToString(sg.GroupId)
 		sgName := aws.ToString(sg.GroupName)
-		display := fmt.Sprintf("%s (%s)", sgName, sgID)
+		displayStr := fmt.Sprintf("%s (%s)", sgName, sgID)
 
 		if sgName == "default" {
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				SecurityGroup: sgID, Name: sgName,
 				Reason: "Default security group - manual review recommended",
 			})
-			fmt.Printf("[SKIP]     %s (default group)\n", display)
+			fmt.Printf(display.SKIP()+" %s (default group)\n", displayStr)
 			continue
 		}
 
@@ -279,7 +280,7 @@ func RemediateEC2Risks(ctx context.Context, dryRun bool) (*types.RemediationResu
 				}
 				desc := FormatRuleDescription(protocol, fromPort, toPort, cidr)
 				if dryRun {
-					fmt.Printf("[DRY-RUN]  %s\n           Would remove: %s\n", display, desc)
+					fmt.Printf("[DRY-RUN]  %s\n           Would remove: %s\n", displayStr, desc)
 					res.Fixed = append(res.Fixed, types.RemediationItem{
 						SecurityGroup: sgID, Name: sgName, RuleRemoved: desc, DryRun: true,
 					})
@@ -294,12 +295,12 @@ func RemediateEC2Risks(ctx context.Context, dryRun bool) (*types.RemediationResu
 						GroupId: aws.String(sgID), IpPermissions: []ec2types.IpPermission{perm},
 					})
 					if rErr != nil {
-						fmt.Printf("[FAILED]   %s\n           Could not remove: %s\n           Error: %v\n", display, desc, rErr)
+						fmt.Printf(display.FAILED()+" %s\n           Could not remove: %s\n           Error: %v\n", displayStr, desc, rErr)
 						res.Failed = append(res.Failed, types.RemediationItem{
 							SecurityGroup: sgID, Name: sgName, RuleRemoved: desc, Error: rErr.Error(),
 						})
 					} else {
-						fmt.Printf("[FIXED]    %s\n           Removed: %s\n", display, desc)
+						fmt.Printf(display.FIXED()+" %s\n           Removed: %s\n", displayStr, desc)
 						res.Fixed = append(res.Fixed, types.RemediationItem{
 							SecurityGroup: sgID, Name: sgName, RuleRemoved: desc,
 						})
@@ -314,7 +315,7 @@ func RemediateEC2Risks(ctx context.Context, dryRun bool) (*types.RemediationResu
 				}
 				desc := FormatRuleDescription(protocol, fromPort, toPort, cidr)
 				if dryRun {
-					fmt.Printf("[DRY-RUN]  %s\n           Would remove: %s\n", display, desc)
+					fmt.Printf("[DRY-RUN]  %s\n           Would remove: %s\n", displayStr, desc)
 					res.Fixed = append(res.Fixed, types.RemediationItem{
 						SecurityGroup: sgID, Name: sgName, RuleRemoved: desc, DryRun: true,
 					})
@@ -329,12 +330,12 @@ func RemediateEC2Risks(ctx context.Context, dryRun bool) (*types.RemediationResu
 						GroupId: aws.String(sgID), IpPermissions: []ec2types.IpPermission{perm},
 					})
 					if rErr != nil {
-						fmt.Printf("[FAILED]   %s\n           Could not remove: %s\n           Error: %v\n", display, desc, rErr)
+						fmt.Printf(display.FAILED()+" %s\n           Could not remove: %s\n           Error: %v\n", displayStr, desc, rErr)
 						res.Failed = append(res.Failed, types.RemediationItem{
 							SecurityGroup: sgID, Name: sgName, RuleRemoved: desc, Error: rErr.Error(),
 						})
 					} else {
-						fmt.Printf("[FIXED]    %s\n           Removed: %s\n", display, desc)
+						fmt.Printf(display.FIXED()+" %s\n           Removed: %s\n", displayStr, desc)
 						res.Fixed = append(res.Fixed, types.RemediationItem{
 							SecurityGroup: sgID, Name: sgName, RuleRemoved: desc,
 						})

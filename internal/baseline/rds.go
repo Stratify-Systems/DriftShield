@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -97,7 +98,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				Type: "INSTANCE_ADDED", InstanceID: id,
 				Message: fmt.Sprintf("Instance '%s' was added since baseline", id),
 			})
-			fmt.Printf("[DRIFT]    Instance '%s' added\n", id)
+			fmt.Printf(display.DRIFT()+"Instance '%s' added\n", id)
 			continue
 		}
 
@@ -110,7 +111,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				OldValue: fmt.Sprintf("%v", blSnap.PubliclyAccessible),
 				NewValue: fmt.Sprintf("%v", snap.PubliclyAccessible),
 			})
-			fmt.Printf("[DRIFT]    '%s' publicly accessible: %v -> %v\n", id, blSnap.PubliclyAccessible, snap.PubliclyAccessible)
+			fmt.Printf(display.DRIFT()+"'%s' publicly accessible: %v -> %v\n", id, blSnap.PubliclyAccessible, snap.PubliclyAccessible)
 			drifted = true
 		}
 
@@ -121,7 +122,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				OldValue: fmt.Sprintf("%v", blSnap.StorageEncrypted),
 				NewValue: fmt.Sprintf("%v", snap.StorageEncrypted),
 			})
-			fmt.Printf("[DRIFT]    '%s' storage encrypted: %v -> %v\n", id, blSnap.StorageEncrypted, snap.StorageEncrypted)
+			fmt.Printf(display.DRIFT()+"'%s' storage encrypted: %v -> %v\n", id, blSnap.StorageEncrypted, snap.StorageEncrypted)
 			drifted = true
 		}
 
@@ -132,7 +133,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				OldValue: fmt.Sprintf("%v", blSnap.DeletionProtection),
 				NewValue: fmt.Sprintf("%v", snap.DeletionProtection),
 			})
-			fmt.Printf("[DRIFT]    '%s' deletion protection: %v -> %v\n", id, blSnap.DeletionProtection, snap.DeletionProtection)
+			fmt.Printf(display.DRIFT()+"'%s' deletion protection: %v -> %v\n", id, blSnap.DeletionProtection, snap.DeletionProtection)
 			drifted = true
 		}
 
@@ -143,7 +144,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				OldValue: fmt.Sprintf("%v", blSnap.MultiAZ),
 				NewValue: fmt.Sprintf("%v", snap.MultiAZ),
 			})
-			fmt.Printf("[DRIFT]    '%s' Multi-AZ: %v -> %v\n", id, blSnap.MultiAZ, snap.MultiAZ)
+			fmt.Printf(display.DRIFT()+"'%s' Multi-AZ: %v -> %v\n", id, blSnap.MultiAZ, snap.MultiAZ)
 			drifted = true
 		}
 
@@ -154,12 +155,12 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				OldValue: fmt.Sprintf("%v", blSnap.AutoMinorUpgrade),
 				NewValue: fmt.Sprintf("%v", snap.AutoMinorUpgrade),
 			})
-			fmt.Printf("[DRIFT]    '%s' auto minor upgrade: %v -> %v\n", id, blSnap.AutoMinorUpgrade, snap.AutoMinorUpgrade)
+			fmt.Printf(display.DRIFT()+"'%s' auto minor upgrade: %v -> %v\n", id, blSnap.AutoMinorUpgrade, snap.AutoMinorUpgrade)
 			drifted = true
 		}
 
 		if !drifted {
-			fmt.Printf("[OK]       Instance '%s' unchanged\n", id)
+			fmt.Printf(display.OK()+"Instance '%s' unchanged\n", id)
 		}
 	}
 
@@ -169,7 +170,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 				Type: "INSTANCE_DELETED", InstanceID: id,
 				Message: fmt.Sprintf("Instance '%s' was deleted since baseline", id),
 			})
-			fmt.Printf("[DRIFT]    Instance '%s' deleted\n", id)
+			fmt.Printf(display.DRIFT()+"Instance '%s' deleted\n", id)
 		}
 	}
 
@@ -215,16 +216,16 @@ func RemediateRDSDrift(ctx context.Context, drifts []types.RDSDrift) (*types.Rem
 			}
 			_, fErr := client.ModifyDBInstance(ctx, input)
 			if fErr != nil {
-				fmt.Printf("[FAILED]  Instance '%s' — could not restore %s: %v\n", drift.InstanceID, drift.Type, fErr)
+				fmt.Printf(display.FAILED()+"Instance '%s' — could not restore %s: %v\n", drift.InstanceID, drift.Type, fErr)
 				res.Failed = append(res.Failed, types.RemediationItem{Name: drift.InstanceID, Type: drift.Type, Error: fErr.Error()})
 			} else {
-				fmt.Printf("[FIXED]   Instance '%s' — %s restored to %s\n", drift.InstanceID, drift.Type, drift.OldValue)
+				fmt.Printf(display.FIXED()+"Instance '%s' — %s restored to %s\n", drift.InstanceID, drift.Type, drift.OldValue)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.InstanceID, Type: drift.Type})
 			}
 
 		default:
 			msg := "Modifying Encryption, Multi-AZ, or Adding/Deleting instances requires complex orchestration (e.g., snapshot & restore) and is therefore skipped to prevent database downtime. Please resolve manually or update the baseline."
-			fmt.Printf("[SKIP]    Instance '%s' — drift type '%s'\n          %s\n", drift.InstanceID, drift.Type, msg)
+			fmt.Printf(display.SKIP()+"Instance '%s' — drift type '%s'\n          %s\n", drift.InstanceID, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				Name: drift.InstanceID, Type: drift.Type, Reason: msg,
 			})

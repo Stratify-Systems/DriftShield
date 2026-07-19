@@ -6,6 +6,17 @@ import (
 	"strings"
 
 	"github.com/SuryaTK2007/DriftShield/internal/config"
+	"github.com/fatih/color"
+)
+
+var (
+	cTitle   = color.New(color.FgHiCyan, color.Bold)
+	cHeader  = color.New(color.FgHiWhite, color.Bold)
+	cSuccess = color.New(color.FgGreen, color.Bold)
+	cWarning = color.New(color.FgYellow, color.Bold)
+	cError   = color.New(color.FgRed, color.Bold)
+	cInfo    = color.New(color.FgHiBlue, color.Bold)
+	cMuted   = color.New(color.FgHiBlack)
 )
 
 // PortServices maps well-known ports to service names.
@@ -23,14 +34,26 @@ var PortServices = map[int32]string{
 // PrintBanner prints a formatted banner with the given title.
 func PrintBanner(title string) {
 	fmt.Println()
-	fmt.Println("+" + strings.Repeat("-", 58) + "+")
-	fmt.Printf("|%-58s|\n", "")
-	fmt.Printf("|  %-56s|\n", "DRIFTSHIELD - "+title)
-	fmt.Printf("|  %-56s|\n", "Version "+config.Version)
-	fmt.Printf("|%-58s|\n", "")
-	fmt.Println("+" + strings.Repeat("-", 58) + "+")
+	cTitle.Println(`    ____       _  __ __  _____ __    _      __    __`)
+	cTitle.Println(`   / __ \_____(_)/ // /_/ ___// /_  (_)__  / /___/ /`)
+	cTitle.Println(`  / / / / ___/ / / __/ /\__ \/ __ \/ / _ \/ / __  / `)
+	cTitle.Println(` / /_/ / /  / / / /_  ___/ / / / / /  __/ / /_/ /  `)
+	cTitle.Println(`/_____/_/  /_/_/_/ / //____/_/ /_/_/\___/_/\__,_/   `)
+	fmt.Println()
+	cHeader.Printf(" 🛡️  DRIFTSHIELD v%s - %s\n", config.Version, strings.ToUpper(title))
+	cMuted.Println(strings.Repeat("━", 60))
 	fmt.Println()
 }
+
+// Prefixes for status outputs
+func OK() string      { return cSuccess.Sprint("✔ [OK]      ") }
+func DRIFT() string   { return cError.Sprint("✖ [DRIFT]   ") }
+func NEW() string     { return cInfo.Sprint("★ [NEW]     ") }
+func DELETED() string { return cWarning.Sprint("🗑 [DELETED] ") }
+func FIXED() string   { return cSuccess.Sprint("✔ [FIXED]   ") }
+func FAILED() string  { return cError.Sprint("✖ [FAILED]  ") }
+func SKIP() string    { return cMuted.Sprint("⏭ [SKIP]    ") }
+func INFO() string    { return cInfo.Sprint("ℹ [INFO]    ") }
 
 // GetPortDescription returns a human-readable description for a port range.
 func GetPortDescription(protocol string, fromPort, toPort int32) string {

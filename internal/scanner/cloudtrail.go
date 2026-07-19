@@ -3,6 +3,7 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -98,7 +99,7 @@ func ScanCloudTrail(ctx context.Context) (*types.CloudTrailScanResults, error) {
 			hasMultiRegion = true
 			fmt.Printf("[SECURE]   Trail '%s' — multi-region coverage\n", name)
 		} else {
-			fmt.Printf("[INFO]     Trail '%s' — single-region only\n", name)
+			fmt.Printf(display.INFO()+"    Trail '%s' — single-region only\n", name)
 		}
 
 		// Management events (read/write)

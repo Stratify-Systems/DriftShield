@@ -111,7 +111,7 @@ func RunDesigner(ctx context.Context) error {
 		if err := baseline.SaveBaseline(path, result.Baseline.S3); err != nil {
 			fmt.Printf("[ERROR] Failed to save S3 baseline: %v\n", err)
 		} else {
-			fmt.Printf("[OK] Saved S3 baseline to %s\n", path)
+			fmt.Printf(display.OK()+"Saved S3 baseline to %s\n", path)
 		}
 	}
 
@@ -123,7 +123,7 @@ func RunDesigner(ctx context.Context) error {
 		if err := baseline.SaveBaseline(path, result.Baseline.EC2); err != nil {
 			fmt.Printf("[ERROR] Failed to save EC2 baseline: %v\n", err)
 		} else {
-			fmt.Printf("[OK] Saved EC2 baseline to %s\n", path)
+			fmt.Printf(display.OK()+"Saved EC2 baseline to %s\n", path)
 		}
 	}
 
@@ -135,7 +135,7 @@ func RunDesigner(ctx context.Context) error {
 		if err := baseline.SaveBaseline(path, result.Baseline.IAM); err != nil {
 			fmt.Printf("[ERROR] Failed to save IAM baseline: %v\n", err)
 		} else {
-			fmt.Printf("[OK] Saved IAM baseline to %s\n", path)
+			fmt.Printf(display.OK()+"Saved IAM baseline to %s\n", path)
 		}
 	}
 
@@ -147,7 +147,7 @@ func RunDesigner(ctx context.Context) error {
 		if err := baseline.SaveBaseline(path, result.Baseline.CloudTrail); err != nil {
 			fmt.Printf("[ERROR] Failed to save CloudTrail baseline: %v\n", err)
 		} else {
-			fmt.Printf("[OK] Saved CloudTrail baseline to %s\n", path)
+			fmt.Printf(display.OK()+"Saved CloudTrail baseline to %s\n", path)
 		}
 	}
 
@@ -159,7 +159,7 @@ func RunDesigner(ctx context.Context) error {
 		if err := baseline.SaveBaseline(path, result.Baseline.VPC); err != nil {
 			fmt.Printf("[ERROR] Failed to save VPC baseline: %v\n", err)
 		} else {
-			fmt.Printf("[OK] Saved VPC baseline to %s\n", path)
+			fmt.Printf(display.OK()+"Saved VPC baseline to %s\n", path)
 		}
 	}
 
@@ -171,7 +171,7 @@ func RunDesigner(ctx context.Context) error {
 		if err := baseline.SaveBaseline(path, result.Baseline.RDS); err != nil {
 			fmt.Printf("[ERROR] Failed to save RDS baseline: %v\n", err)
 		} else {
-			fmt.Printf("[OK] Saved RDS baseline to %s\n", path)
+			fmt.Printf(display.OK()+"Saved RDS baseline to %s\n", path)
 		}
 	}
 

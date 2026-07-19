@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -89,7 +90,7 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 				Type: "VPC_ADDED", VPCID: vpcID, Resource: vpcID,
 				Message: fmt.Sprintf("VPC '%s' was added since baseline", vpcID),
 			})
-			fmt.Printf("[DRIFT]    VPC %s added\n", vpcID)
+			fmt.Printf(display.DRIFT()+"VPC %s added\n", vpcID)
 			continue
 		}
 
@@ -102,7 +103,7 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 				OldValue: fmt.Sprintf("%v", blSnap.FlowLogsEnabled),
 				NewValue: fmt.Sprintf("%v", snap.FlowLogsEnabled),
 			})
-			fmt.Printf("[DRIFT]    VPC %s flow logs: %v -> %v\n", vpcID, blSnap.FlowLogsEnabled, snap.FlowLogsEnabled)
+			fmt.Printf(display.DRIFT()+"VPC %s flow logs: %v -> %v\n", vpcID, blSnap.FlowLogsEnabled, snap.FlowLogsEnabled)
 			vpcDrifted = true
 		}
 
@@ -113,7 +114,7 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 					Type: "SUBNET_ADDED", VPCID: vpcID, Resource: subnetID,
 					Message: fmt.Sprintf("Subnet '%s' was added since baseline", subnetID),
 				})
-				fmt.Printf("[DRIFT]    VPC %s — subnet %s added\n", vpcID, subnetID)
+				fmt.Printf(display.DRIFT()+"VPC %s — subnet %s added\n", vpcID, subnetID)
 				vpcDrifted = true
 				continue
 			}
@@ -124,7 +125,7 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 					OldValue: fmt.Sprintf("%v", blSub.AutoAssignPublicIP),
 					NewValue: fmt.Sprintf("%v", subSnap.AutoAssignPublicIP),
 				})
-				fmt.Printf("[DRIFT]    VPC %s — subnet %s auto-assign public IP: %v -> %v\n",
+				fmt.Printf(display.DRIFT()+"VPC %s — subnet %s auto-assign public IP: %v -> %v\n",
 					vpcID, subnetID, blSub.AutoAssignPublicIP, subSnap.AutoAssignPublicIP)
 				vpcDrifted = true
 			}
@@ -136,13 +137,13 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 					Type: "SUBNET_DELETED", VPCID: vpcID, Resource: subnetID,
 					Message: fmt.Sprintf("Subnet '%s' was deleted since baseline", subnetID),
 				})
-				fmt.Printf("[DRIFT]    VPC %s — subnet %s deleted\n", vpcID, subnetID)
+				fmt.Printf(display.DRIFT()+"VPC %s — subnet %s deleted\n", vpcID, subnetID)
 				vpcDrifted = true
 			}
 		}
 
 		if !vpcDrifted {
-			fmt.Printf("[OK]       VPC %s unchanged\n", vpcID)
+			fmt.Printf(display.OK()+"VPC %s unchanged\n", vpcID)
 		}
 	}
 
@@ -152,7 +153,7 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 				Type: "VPC_DELETED", VPCID: vpcID, Resource: vpcID,
 				Message: fmt.Sprintf("VPC '%s' was deleted since baseline", vpcID),
 			})
-			fmt.Printf("[DRIFT]    VPC %s deleted\n", vpcID)
+			fmt.Printf(display.DRIFT()+"VPC %s deleted\n", vpcID)
 		}
 	}
 
@@ -189,16 +190,16 @@ func RemediateVPCDrift(ctx context.Context, drifts []types.VPCDrift) (*types.Rem
 				MapPublicIpOnLaunch: &ec2types.AttributeBooleanValue{Value: aws.Bool(blSub.AutoAssignPublicIP)},
 			})
 			if fErr != nil {
-				fmt.Printf("[FAILED]  Subnet '%s' — could not restore auto-assign public IP: %v\n", drift.Resource, fErr)
+				fmt.Printf(display.FAILED()+"Subnet '%s' — could not restore auto-assign public IP: %v\n", drift.Resource, fErr)
 				res.Failed = append(res.Failed, types.RemediationItem{Name: drift.Resource, Type: drift.Type, Error: fErr.Error()})
 			} else {
-				fmt.Printf("[FIXED]   Subnet '%s' — auto-assign public IP restored to %v\n", drift.Resource, blSub.AutoAssignPublicIP)
+				fmt.Printf(display.FIXED()+"Subnet '%s' — auto-assign public IP restored to %v\n", drift.Resource, blSub.AutoAssignPublicIP)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.Resource, Type: drift.Type})
 			}
 
 		default:
 			msg := "Creating/deleting VPCs or Subnets, and toggling Flow Logs are complex operations that may break networking. Skipped to prevent outages. Please resolve manually or update the baseline."
-			fmt.Printf("[SKIP]    VPC '%s' — drift type '%s'\n          %s\n", drift.VPCID, drift.Type, msg)
+			fmt.Printf(display.SKIP()+"VPC '%s' — drift type '%s'\n          %s\n", drift.VPCID, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				Name: drift.Resource, Type: drift.Type, Reason: msg,
 			})

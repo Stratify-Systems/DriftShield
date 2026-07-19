@@ -141,7 +141,7 @@ func SendS3DriftAlerts(ctx context.Context, drifts []types.S3Drift) {
 	text := fmt.Sprintf("DriftShield - Drift Detected\nTime: %s\nDrifts (%d):\n%s", now, len(drifts), textList.String())
 
 	fmt.Println("[EMAIL] Sending drift alert...")
-	if err := sendEmail(ctx, fmt.Sprintf("[DRIFT] DriftShield: %d Configuration Change(s) Detected", len(drifts)), text, html); err != nil {
+	if err := sendEmail(ctx, fmt.Sprintf(display.DRIFT()+"DriftShield: %d Configuration Change(s) Detected", len(drifts)), text, html); err != nil {
 		fmt.Printf("[EMAIL] Drift alert failed: %v\n", err)
 	}
 	SNSPublishS3DriftAlerts(ctx, drifts)

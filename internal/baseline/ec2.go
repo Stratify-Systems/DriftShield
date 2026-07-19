@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"sort"
 	"time"
 
@@ -123,7 +124,7 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 	for _, sg := range out.SecurityGroups {
 		sgID := aws.ToString(sg.GroupId)
 		sgName := aws.ToString(sg.GroupName)
-		display := fmt.Sprintf("%s (%s)", sgName, sgID)
+		displayStr := fmt.Sprintf("%s (%s)", sgName, sgID)
 
 		currentCfg := scanner.GetSecurityGroupConfig(sg)
 		blCfg, exists := bl.SecurityGroups[sgID]
@@ -134,7 +135,7 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 				Message: "Security group not in baseline (newly created)",
 				Current: &currentCfg,
 			})
-			fmt.Printf("[NEW]      %s\n", display)
+			fmt.Printf(display.NEW()+"%s\n", displayStr)
 			continue
 		}
 
@@ -167,7 +168,7 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 				AddedRules: added, RemovedRules: removed,
 				Current: &currentCfg, Baseline: &blCfg,
 			})
-			fmt.Printf("[DRIFT]    %s\n", display)
+			fmt.Printf(display.DRIFT()+"%s\n", displayStr)
 			if len(added) > 0 {
 				fmt.Printf("           + %d rule(s) added\n", len(added))
 			}
@@ -175,7 +176,7 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 				fmt.Printf("           - %d rule(s) removed\n", len(removed))
 			}
 		} else {
-			fmt.Printf("[OK]       %s\n", display)
+			fmt.Printf(display.OK()+"%s\n", displayStr)
 		}
 	}
 
@@ -190,7 +191,7 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 				SecurityGroup: blID, Name: blCfg.GroupName, Type: "SECURITY_GROUP_DELETED",
 				Message: "Security group was deleted", Baseline: &blCfg,
 			})
-			fmt.Printf("[DELETED]  %s (%s)\n", blCfg.GroupName, blID)
+			fmt.Printf(display.DELETED()+"%s (%s)\n", blCfg.GroupName, blID)
 		}
 	}
 

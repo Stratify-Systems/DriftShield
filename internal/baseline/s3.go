@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -173,7 +174,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 				Message: "Bucket not in baseline (newly created)",
 				Current: current,
 			})
-			fmt.Printf("[NEW]      %s (not in baseline)\n", name)
+			fmt.Printf(display.NEW()+"%s (not in baseline)\n", name)
 			driftedBuckets[name] = true
 			continue
 		}
@@ -192,7 +193,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 				Message: "Public access settings changed", Details: details,
 				Current: current.PublicAccessBlock, Baseline: blCfg.PublicAccessBlock,
 			})
-			fmt.Printf("[DRIFT]    %s\n", name)
+			fmt.Printf(display.DRIFT()+"%s\n", name)
 			for _, d := range details {
 				fmt.Printf("           - %s\n", d)
 			}
@@ -207,7 +208,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 				Current:  current.Versioning,
 				Baseline: blCfg.Versioning,
 			})
-			fmt.Printf("[DRIFT]    %s\n           - Versioning: %s -> %s\n", name, blCfg.Versioning, current.Versioning)
+			fmt.Printf(display.DRIFT()+"%s\n           - Versioning: %s -> %s\n", name, blCfg.Versioning, current.Versioning)
 			driftedBuckets[name] = true
 		}
 
@@ -219,12 +220,12 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 				Current:  current.Encryption,
 				Baseline: blCfg.Encryption,
 			})
-			fmt.Printf("[DRIFT]    %s\n           - Encryption: %s -> %s\n", name, blCfg.Encryption, current.Encryption)
+			fmt.Printf(display.DRIFT()+"%s\n           - Encryption: %s -> %s\n", name, blCfg.Encryption, current.Encryption)
 			driftedBuckets[name] = true
 		}
 
 		if !driftedBuckets[name] {
-			fmt.Printf("[OK]       %s\n", name)
+			fmt.Printf(display.OK()+"%s\n", name)
 		}
 	}
 
@@ -239,7 +240,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 				Bucket: bName, Type: "BUCKET_DELETED",
 				Message: "Bucket was deleted", Baseline: bCfg,
 			})
-			fmt.Printf("[DELETED]  %s\n", bName)
+			fmt.Printf(display.DELETED()+"%s\n", bName)
 		}
 	}
 
@@ -249,7 +250,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 // RemediateS3Drift fixes drifted S3 configurations back to baseline.
 func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.RemediationResults, error) {
 	if len(drifts) == 0 {
-		fmt.Println("[INFO] No drifts to remediate.")
+		fmt.Println(display.INFO() + "No drifts to remediate.")
 		return &types.RemediationResults{}, nil
 	}
 
@@ -271,7 +272,7 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 
 		if drift.Type == "NEW_BUCKET" || drift.Type == "BUCKET_DELETED" {
 			msg := "Creating or deleting entire AWS buckets is skipped to prevent accidental data destruction or state conflicts. Please resolve manually or update the baseline."
-			fmt.Printf("[SKIP]    %s - %s\n          %s\n", bucket, drift.Type, msg)
+			fmt.Printf(display.SKIP()+"%s - %s\n          %s\n", bucket, drift.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				Bucket: bucket, Type: drift.Type, Reason: msg,
 			})
@@ -296,10 +297,10 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 				},
 			})
 			if fErr != nil {
-				fmt.Printf("[FAILED]  %s - %v\n", bucket, fErr)
+				fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
 				res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 			} else {
-				fmt.Printf("[FIXED]   %s - Public access block restored\n", bucket)
+				fmt.Printf(display.FIXED()+"%s - Public access block restored\n", bucket)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
 			}
 
@@ -313,10 +314,10 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 				VersioningConfiguration: &s3types.VersioningConfiguration{Status: status},
 			})
 			if fErr != nil {
-				fmt.Printf("[FAILED]  %s - %v\n", bucket, fErr)
+				fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
 				res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 			} else {
-				fmt.Printf("[FIXED]   %s - Versioning restored to %s\n", bucket, blCfg.Versioning)
+				fmt.Printf(display.FIXED()+"%s - Versioning restored to %s\n", bucket, blCfg.Versioning)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
 			}
 
@@ -333,10 +334,10 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 					},
 				})
 				if fErr != nil {
-					fmt.Printf("[FAILED]  %s - %v\n", bucket, fErr)
+					fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
 					res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 				} else {
-					fmt.Printf("[FIXED]   %s - Encryption restored to %s\n", bucket, blCfg.Encryption)
+					fmt.Printf(display.FIXED()+"%s - Encryption restored to %s\n", bucket, blCfg.Encryption)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
 				}
 			} else {
@@ -344,16 +345,16 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 					Bucket: aws.String(bucket),
 				})
 				if fErr != nil {
-					fmt.Printf("[FAILED]  %s - %v\n", bucket, fErr)
+					fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
 					res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 				} else {
-					fmt.Printf("[FIXED]   %s - Encryption removed (baseline had none)\n", bucket)
+					fmt.Printf(display.FIXED()+"%s - Encryption removed (baseline had none)\n", bucket)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
 				}
 			}
 
 		default:
-			fmt.Printf("[SKIP]    %s - Unknown drift type: %s\n", bucket, drift.Type)
+			fmt.Printf(display.SKIP()+"%s - Unknown drift type: %s\n", bucket, drift.Type)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
 				Bucket: bucket, Type: drift.Type, Reason: "Unknown drift type",
 			})

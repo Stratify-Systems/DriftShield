@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -181,7 +182,7 @@ func ScanAllBuckets(ctx context.Context) (*types.S3ScanResults, error) {
 		fmt.Println("       Falling back to bucket-level checks only.")
 		accountLevelSecure = false
 	} else if accountLevelSecure {
-		fmt.Println("[INFO] Account-level Block Public Access is fully enabled.")
+		fmt.Println(display.INFO() + "Account-level Block Public Access is fully enabled.")
 		fmt.Println("       All buckets are protected at the account level.")
 	}
 

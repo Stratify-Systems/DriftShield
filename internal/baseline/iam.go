@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"fmt"
+	"github.com/SuryaTK2007/DriftShield/internal/display"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -140,9 +141,9 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 				Type: "PASSWORD_POLICY_REMOVED", Resource: "account",
 				Message: "Password policy was removed since baseline",
 			})
-			fmt.Println("[DRIFT]    Password policy was removed")
+			fmt.Println(display.DRIFT() + "Password policy was removed")
 		} else {
-			fmt.Println("[OK]       Password policy unchanged (still not configured)")
+			fmt.Println(display.OK() + "Password policy unchanged (still not configured)")
 		}
 	} else {
 		p := ppOut.PasswordPolicy
@@ -162,7 +163,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 				Type: "PASSWORD_POLICY_ADDED", Resource: "account",
 				Message: "Password policy was added since baseline",
 			})
-			fmt.Println("[DRIFT]    Password policy was added")
+			fmt.Println(display.DRIFT() + "Password policy was added")
 		} else {
 			policyDrifted := false
 			if current.MinimumPasswordLength != bl.PasswordPolicy.MinimumPasswordLength {
@@ -172,7 +173,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 					OldValue: fmt.Sprintf("%d", bl.PasswordPolicy.MinimumPasswordLength),
 					NewValue: fmt.Sprintf("%d", current.MinimumPasswordLength),
 				})
-				fmt.Printf("[DRIFT]    Password min length: %d -> %d\n", bl.PasswordPolicy.MinimumPasswordLength, current.MinimumPasswordLength)
+				fmt.Printf(display.DRIFT()+"Password min length: %d -> %d\n", bl.PasswordPolicy.MinimumPasswordLength, current.MinimumPasswordLength)
 				policyDrifted = true
 			}
 			if current.ExpirePasswords != bl.PasswordPolicy.ExpirePasswords {
@@ -182,7 +183,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 					OldValue: fmt.Sprintf("%v", bl.PasswordPolicy.ExpirePasswords),
 					NewValue: fmt.Sprintf("%v", current.ExpirePasswords),
 				})
-				fmt.Printf("[DRIFT]    Password expiry: %v -> %v\n", bl.PasswordPolicy.ExpirePasswords, current.ExpirePasswords)
+				fmt.Printf(display.DRIFT()+"Password expiry: %v -> %v\n", bl.PasswordPolicy.ExpirePasswords, current.ExpirePasswords)
 				policyDrifted = true
 			}
 			if current.PasswordReusePrevention != bl.PasswordPolicy.PasswordReusePrevention {
@@ -192,7 +193,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 					OldValue: fmt.Sprintf("%d", bl.PasswordPolicy.PasswordReusePrevention),
 					NewValue: fmt.Sprintf("%d", current.PasswordReusePrevention),
 				})
-				fmt.Printf("[DRIFT]    Password reuse prevention: %d -> %d\n", bl.PasswordPolicy.PasswordReusePrevention, current.PasswordReusePrevention)
+				fmt.Printf(display.DRIFT()+"Password reuse prevention: %d -> %d\n", bl.PasswordPolicy.PasswordReusePrevention, current.PasswordReusePrevention)
 				policyDrifted = true
 			}
 			if current.RequireUppercase != bl.PasswordPolicy.RequireUppercase ||
@@ -203,11 +204,11 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 					Type: "PASSWORD_COMPLEXITY_CHANGED", Resource: "account",
 					Message: "Password complexity requirements changed",
 				})
-				fmt.Println("[DRIFT]    Password complexity requirements changed")
+				fmt.Println(display.DRIFT() + "Password complexity requirements changed")
 				policyDrifted = true
 			}
 			if !policyDrifted {
-				fmt.Println("[OK]       Password policy unchanged")
+				fmt.Println(display.OK() + "Password policy unchanged")
 			}
 		}
 	}
@@ -231,7 +232,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 					Type: "USER_ADDED", Resource: username,
 					Message: fmt.Sprintf("User '%s' was added since baseline", username),
 				})
-				fmt.Printf("[DRIFT]    User '%s' added\n", username)
+				fmt.Printf(display.DRIFT()+"User '%s' added\n", username)
 				continue
 			}
 
@@ -244,7 +245,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 					OldValue: fmt.Sprintf("%v", blUser.MFAEnabled),
 					NewValue: fmt.Sprintf("%v", currentMFA),
 				})
-				fmt.Printf("[DRIFT]    User '%s' MFA: %v -> %v\n", username, blUser.MFAEnabled, currentMFA)
+				fmt.Printf(display.DRIFT()+"User '%s' MFA: %v -> %v\n", username, blUser.MFAEnabled, currentMFA)
 				userDrifted = true
 			}
 
@@ -265,7 +266,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 							Message:  fmt.Sprintf("Policy '%s' attached to user '%s'", pol, username),
 							NewValue: pol,
 						})
-						fmt.Printf("[DRIFT]    User '%s' policy added: %s\n", username, pol)
+						fmt.Printf(display.DRIFT()+"User '%s' policy added: %s\n", username, pol)
 						userDrifted = true
 					}
 				}
@@ -276,14 +277,14 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 							Message:  fmt.Sprintf("Policy '%s' detached from user '%s'", pol, username),
 							OldValue: pol,
 						})
-						fmt.Printf("[DRIFT]    User '%s' policy removed: %s\n", username, pol)
+						fmt.Printf(display.DRIFT()+"User '%s' policy removed: %s\n", username, pol)
 						userDrifted = true
 					}
 				}
 			}
 
 			if !userDrifted {
-				fmt.Printf("[OK]       User '%s' unchanged\n", username)
+				fmt.Printf(display.OK()+"User '%s' unchanged\n", username)
 			}
 		}
 	}
@@ -294,7 +295,7 @@ func CompareIAMWithBaseline(ctx context.Context) ([]types.IAMDrift, bool, error)
 				Type: "USER_DELETED", Resource: username,
 				Message: fmt.Sprintf("User '%s' was deleted since baseline", username),
 			})
-			fmt.Printf("[DRIFT]    User '%s' deleted\n", username)
+			fmt.Printf(display.DRIFT()+"User '%s' deleted\n", username)
 		}
 	}
 
