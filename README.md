@@ -15,6 +15,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **AI Baseline Designer**: Interactively generates secure-by-default baselines based on application context using Groq LLaMA 3
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
+- **Remote State Backend**: Store and fetch baseline states securely from AWS S3 (GitOps ready)
 - **Email Alerts**: Sends notifications via AWS SES when risks are detected
 - **SNS Alerts**: Publishes to AWS SNS with message attributes for filter-policy-based routing
 - **Slack Integration**: Optional Slack webhook alerts
@@ -51,6 +52,8 @@ DriftShield/
 │   │   ├── conversation.go      # Interactive CLI prompts
 │   │   ├── generator.go         # Baseline generation logic
 │   │   └── prompt.go            # LLM prompt construction
+│   ├── storage/
+│   │   └── state.go             # S3 / local state backend
 │   └── alerts/
 │       ├── ses.go               # AWS SES email alerts
 │       ├── sns.go               # AWS SNS alerts
@@ -101,7 +104,62 @@ DriftShield/
   aws configure
   ```
 
-4. Update configuration in `internal/config/config.go`
+4. Create a `.env` file (copy `.env.example` if available) and update your configurations.
+5. Update configuration in `internal/config/config.go` if needed.
+
+## Remote State Backend (S3)
+
+DriftShield natively supports centralized state storage in AWS S3 for CI/CD and GitOps workflows. 
+
+By default, DriftShield saves baseline snapshots as local `.json` files in the `baselines/` directory. However, if you configure the following in your `.env` file:
+```env
+DRIFTSHIELD_STATE_BUCKET=my-security-bucket
+DRIFTSHIELD_STATE_BUCKET_REGION=us-east-1
+```
+All subcommands (`drift`, `baseline`, and `fix`) will bypass the local filesystem and read/write the JSON baselines directly from the specified S3 bucket. This ensures an immutable, auditable source of truth.
+
+### Recommended Bucket Policy
+
+To secure your remote state bucket, we recommend attaching a bucket policy that grants read/write access to your designated DriftShield IAM user (e.g., `drift-shield-user`) and read-only access to the AWS Root account. Remember to replace the Account ID and ARNs with your own:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowDriftShieldUserFullAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<ACCOUNT_ID>:user/drift-shield-user"
+            },
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<BUCKET_NAME>",
+                "arn:aws:s3:::<BUCKET_NAME>/*"
+            ]
+        },
+        {
+            "Sid": "AllowRootAccountReadAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<ACCOUNT_ID>:root"
+            },
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<BUCKET_NAME>",
+                "arn:aws:s3:::<BUCKET_NAME>/*"
+            ]
+        }
+    ]
+}
+```
 
 ## Usage
 

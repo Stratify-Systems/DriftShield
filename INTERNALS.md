@@ -213,11 +213,14 @@ This is the core of DriftShield. It works in two steps.
 
 **Commands:** `driftshield <service> baseline`
 
-**Files:** `internal/baseline/s3.go`, `ec2.go`, `iam.go`, `cloudtrail.go`, `vpc.go`, `rds.go`
+**Files:** `internal/baseline/common.go`, `s3.go`, `ec2.go`, `iam.go`, `cloudtrail.go`, `vpc.go`, `rds.go`, `internal/storage/state.go`
 
-Each baseline command fetches the current live state from AWS and serializes it to a JSON file under `baselines/`:
+Each baseline command fetches the current live state from AWS and serializes it to JSON. 
+This JSON is handed off to `internal/storage/state.go` which decides whether to save it locally in `baselines/` or push it directly to an AWS S3 bucket (if `DRIFTSHIELD_STATE_BUCKET` is configured in `.env`).
 
-| Service | Baseline file | What is captured |
+*Note: S3 bucket access is controlled entirely via AWS IAM. It is recommended to use an S3 Bucket Policy to restrict access exclusively to the DriftShield IAM user and AWS Root account to ensure state file integrity.*
+
+| Service | Baseline JSON format | What is captured |
 |---|---|---|
 | S3 | `baselines/s3_baseline.json` | Public access flags, versioning, encryption per bucket |
 | EC2 | `baselines/ec2_baseline.json` | All inbound rules per security group |
@@ -230,9 +233,9 @@ Each baseline command fetches the current live state from AWS and serializes it 
 
 **Commands:** `driftshield <service> drift`
 
-- Loads the saved JSON baseline from disk
-- Fetches the current live state from AWS
-- Diffs them field by field and reports changes
+- Loads the saved JSON baseline using `internal/storage/state.go` (from S3 or local disk).
+- Fetches the current live state from AWS.
+- Diffs them field by field and reports changes.
 
 **Nil-baseline detection:** IAM, CloudTrail, VPC, and RDS use a `([]Drift, bool, error)` return signature where the `bool` indicates whether a baseline file exists. This avoids the ambiguity of a nil slice (which could mean "no baseline" or "no drifts") that affects S3/EC2.
 
@@ -547,11 +550,14 @@ for each drift:
 
 ### `driftshield ec2 fix`
 ```
+CompareEC2WithBaseline() → []EC2Drift
 Prompt for confirmation
-  → DescribeSecurityGroups
-  → for each SG: for each rule open to 0.0.0.0/0 on risky port
-    → RevokeSecurityGroupIngress
-  → report Fixed / Failed / Skipped
+for each drift:
+  RULES_CHANGED:
+    → RevokeSecurityGroupIngress (for AddedRules)
+    → AuthorizeSecurityGroupIngress (for RemovedRules)
+  other → skip
+→ report Fixed / Failed / Skipped
 ```
 
 ### `driftshield all`
