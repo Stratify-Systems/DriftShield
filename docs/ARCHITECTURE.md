@@ -10,35 +10,35 @@ This document outlines the core architectural components, data flows, and design
 
 ```mermaid
 graph TD
-    User([User / CI Pipeline]) --> CLI[cmd/driftshield (Cobra CLI)]
+    User(["User / CI Pipeline"]) --> CLI["cmd/driftshield (Cobra CLI)"]
     
     subgraph Core Engine
-        CLI --> Config[internal/config]
-        CLI --> Baseline[internal/baseline]
-        CLI --> Scanner[internal/scanner]
-        CLI --> AI[internal/ai]
+        CLI --> Config["internal/config"]
+        CLI --> Baseline["internal/baseline"]
+        CLI --> Scanner["internal/scanner"]
+        CLI --> AI["internal/ai"]
     end
 
     subgraph AWS Integration
-        Scanner --> SDK[AWS SDK for Go v2]
+        Scanner --> SDK["AWS SDK for Go v2"]
         Baseline --> SDK
     end
 
     subgraph Persistence Layer
-        Baseline <--> Storage[internal/storage]
-        Storage <--> S3Backend[(AWS S3 Remote State)]
+        Baseline <--> Storage["internal/storage"]
+        Storage <--> S3Backend[("AWS S3 Remote State")]
     end
 
     subgraph Notification Layer
-        Scanner --> Alerts[internal/alerts]
+        Scanner --> Alerts["internal/alerts"]
         Baseline --> Alerts
-        Alerts --> SES[AWS SES]
-        Alerts --> SNS[AWS SNS]
-        Alerts --> Slack[Slack Webhooks]
+        Alerts --> SES["AWS SES"]
+        Alerts --> SNS["AWS SNS"]
+        Alerts --> Slack["Slack Webhooks"]
     end
 
     subgraph AI Layer
-        AI <--> Groq[Groq API / LLaMA 3]
+        AI <--> Groq["Groq API / LLaMA 3"]
     end
 ```
 
