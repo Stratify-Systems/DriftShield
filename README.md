@@ -163,6 +163,11 @@ To secure your remote state bucket, we recommend attaching a bucket policy that 
 
 ## Usage
 
+### Global Flags
+DriftShield supports several global flags that can be applied to its commands:
+- `-r, --region string` : Specify the AWS region (e.g., `us-east-1`). If not provided, it falls back to `.env` or standard AWS config.
+- `-d, --dry-run` : Simulate the `fix` command without actually making any destructive changes to your AWS environment. Highly recommended for CI/CD pipelines!
+
 ### S3 Commands
 ```bash
 driftshield s3                    # Run S3 security scan

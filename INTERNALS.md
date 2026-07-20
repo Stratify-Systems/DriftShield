@@ -447,9 +447,10 @@ A static Go file — no environment variables or external config files. Edit it 
 | `VPCBaselineFile` | `baselines/vpc_baseline.json` |
 | `RDSBaselineFile` | `baselines/rds_baseline.json` |
 
-#### Region Resolution
+#### Global Flags
 
-The `--region` / `-r` flag is a Cobra persistent flag registered on the root command, so it applies to every subcommand. It sets `config.CurrentRegion` at parse time.
+**Region Resolution (`--region` / `-r`)**
+The `--region` flag is a Cobra persistent flag registered on the root command, so it applies to every subcommand. It sets `config.CurrentRegion` at parse time.
 
 All AWS clients call `config.GetRegion()` when constructing their SDK config:
 
@@ -474,6 +475,9 @@ func GetRegion() string {
 | IAM baseline | `baseline/iam.go` | ✅ |
 
 This means `--region` works uniformly across scan, baseline, drift, and fix operations for all services.
+
+**Dry Run Mode (`--dry-run` / `-d`)**
+The `--dry-run` flag is also a Cobra persistent flag registered on the root command, bound to a global `dryRun` boolean in `main.go`. When `driftshield <service> fix --dry-run` is invoked, `dryRun` is passed to the `Remediate*Drift` functions. If `dryRun` is `true`, these functions simulate execution by formatting the remediation message and returning it in the `Fixed` list without ever hitting the actual AWS APIs (like `PutPublicAccessBlock` or `RevokeSecurityGroupIngress`).
 
 ---
 
