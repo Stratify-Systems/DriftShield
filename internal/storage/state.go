@@ -12,9 +12,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	smithy "github.com/aws/smithy-go"
 
 	"github.com/SuryaTK2007/DriftShield/internal/config"
 )
+
+// ErrBaselineNotFound is returned when no baseline exists at the given path.
+var ErrBaselineNotFound = errors.New("baseline not found")
 
 // SaveBaseline saves the given baseline data for a service either to S3 or locally.
 func SaveBaseline(ctx context.Context, filename string, data []byte) error {
@@ -44,7 +48,7 @@ func loadLocally(filename string) ([]byte, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, errors.New("baseline not found locally")
+			return nil, ErrBaselineNotFound
 		}
 		return nil, err
 	}
@@ -93,6 +97,14 @@ func loadFromS3(ctx context.Context, filename string) ([]byte, error) {
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		// Check for S3 not-found errors using the smithy API error interface
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			code := apiErr.ErrorCode()
+			if code == "NoSuchKey" || code == "NotFound" {
+				return nil, ErrBaselineNotFound
+			}
+		}
 		return nil, fmt.Errorf("failed to load baseline from S3 bucket %s: %w", config.StateBucket, err)
 	}
 	defer out.Body.Close()
