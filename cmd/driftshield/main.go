@@ -38,8 +38,11 @@ misconfigurations and monitors configuration drift against a secure baseline.`,
 	Version: config.Version,
 }
 
+var dryRun bool
+
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&config.CurrentRegion, "region", "r", "", "AWS region (e.g., us-east-1)")
+	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "d", false, "Simulate the fix without making any changes to AWS")
 
 	// S3 commands
 	s3Cmd := &cobra.Command{
@@ -217,6 +220,10 @@ func runS3Fix() {
 	display.PrintBanner("REMEDIATION")
 	fmt.Printf("Started at: %s\n\n", now())
 
+	if dryRun {
+		fmt.Printf("[DRY RUN] Simulating fixes. No actual changes will be made.\n\n")
+	}
+
 	drifts, exists, err := baseline.CompareS3WithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
@@ -234,7 +241,7 @@ func runS3Fix() {
 
 	fmt.Printf("\nFound %d drift(s). Starting remediation...\n\n", len(drifts))
 
-	results, err := baseline.RemediateS3Drift(ctx, drifts)
+	results, err := baseline.RemediateS3Drift(ctx, drifts, dryRun)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
@@ -347,6 +354,10 @@ func runEC2Fix() {
 	display.PrintBanner("EC2 AUTO-FIX")
 	fmt.Printf("Started at: %s\n\n", now())
 
+	if dryRun {
+		fmt.Printf("[DRY RUN] Simulating fixes. No actual changes will be made.\n\n")
+	}
+
 	drifts, err := baseline.CompareEC2WithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
@@ -364,7 +375,7 @@ func runEC2Fix() {
 
 	fmt.Printf("\nFound %d drift(s). Starting remediation...\n\n", len(drifts))
 
-	results, err := baseline.RemediateEC2Drift(ctx, drifts)
+	results, err := baseline.RemediateEC2Drift(ctx, drifts, dryRun)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
@@ -560,6 +571,10 @@ func runCloudTrailFix() {
 	display.PrintBanner("CLOUDTRAIL AUTO-FIX")
 	fmt.Printf("Started at: %s\n\n", now())
 
+	if dryRun {
+		fmt.Printf("[DRY RUN] Simulating fixes. No actual changes will be made.\n\n")
+	}
+
 	drifts, exists, err := baseline.CompareCloudTrailWithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
@@ -600,7 +615,7 @@ func runCloudTrailFix() {
 	}
 
 	fmt.Println()
-	results, err := baseline.RemediateCloudTrailDrift(ctx, drifts)
+	results, err := baseline.RemediateCloudTrailDrift(ctx, drifts, dryRun)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
@@ -696,6 +711,10 @@ func runRDSFix() {
 	display.PrintBanner("RDS AUTO-FIX")
 	fmt.Printf("Started at: %s\n\n", now())
 
+	if dryRun {
+		fmt.Printf("[DRY RUN] Simulating fixes. No actual changes will be made.\n\n")
+	}
+
 	drifts, exists, err := baseline.CompareRDSWithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
@@ -738,7 +757,7 @@ func runRDSFix() {
 	}
 
 	fmt.Println()
-	results, err := baseline.RemediateRDSDrift(ctx, drifts)
+	results, err := baseline.RemediateRDSDrift(ctx, drifts, dryRun)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return
@@ -834,6 +853,10 @@ func runVPCFix() {
 	display.PrintBanner("VPC AUTO-FIX")
 	fmt.Printf("Started at: %s\n\n", now())
 
+	if dryRun {
+		fmt.Printf("[DRY RUN] Simulating fixes. No actual changes will be made.\n\n")
+	}
+
 	drifts, exists, err := baseline.CompareVPCWithBaseline(ctx)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
@@ -872,7 +895,7 @@ func runVPCFix() {
 	}
 
 	fmt.Println()
-	results, err := baseline.RemediateVPCDrift(ctx, drifts)
+	results, err := baseline.RemediateVPCDrift(ctx, drifts, dryRun)
 	if err != nil {
 		fmt.Printf("[ERROR] %v\n", err)
 		return

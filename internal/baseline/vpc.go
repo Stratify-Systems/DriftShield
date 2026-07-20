@@ -161,7 +161,7 @@ func CompareVPCWithBaseline(ctx context.Context) ([]types.VPCDrift, bool, error)
 }
 
 // RemediateVPCDrift restores drifted VPC subnet settings back to baseline.
-func RemediateVPCDrift(ctx context.Context, drifts []types.VPCDrift) (*types.RemediationResults, error) {
+func RemediateVPCDrift(ctx context.Context, drifts []types.VPCDrift, dryRun bool) (*types.RemediationResults, error) {
 	bl, err := LoadVPCBaseline()
 	if err != nil || bl == nil {
 		return nil, fmt.Errorf("failed to load VPC baseline")
@@ -185,16 +185,21 @@ func RemediateVPCDrift(ctx context.Context, drifts []types.VPCDrift) (*types.Rem
 			if !ok {
 				continue
 			}
-			_, fErr := client.ModifySubnetAttribute(ctx, &ec2.ModifySubnetAttributeInput{
-				SubnetId:            aws.String(drift.Resource),
-				MapPublicIpOnLaunch: &ec2types.AttributeBooleanValue{Value: aws.Bool(blSub.AutoAssignPublicIP)},
-			})
-			if fErr != nil {
-				fmt.Printf(display.FAILED()+"Subnet '%s' — could not restore auto-assign public IP: %v\n", drift.Resource, fErr)
-				res.Failed = append(res.Failed, types.RemediationItem{Name: drift.Resource, Type: drift.Type, Error: fErr.Error()})
-			} else {
-				fmt.Printf(display.FIXED()+"Subnet '%s' — auto-assign public IP restored to %v\n", drift.Resource, blSub.AutoAssignPublicIP)
+			if dryRun {
+				fmt.Printf("[DRY-RUN] Would restore auto-assign public IP to %v for subnet %s\n", blSub.AutoAssignPublicIP, drift.Resource)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.Resource, Type: drift.Type})
+			} else {
+				_, fErr := client.ModifySubnetAttribute(ctx, &ec2.ModifySubnetAttributeInput{
+					SubnetId:            aws.String(drift.Resource),
+					MapPublicIpOnLaunch: &ec2types.AttributeBooleanValue{Value: aws.Bool(blSub.AutoAssignPublicIP)},
+				})
+				if fErr != nil {
+					fmt.Printf(display.FAILED()+"Subnet '%s' — could not restore auto-assign public IP: %v\n", drift.Resource, fErr)
+					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.Resource, Type: drift.Type, Error: fErr.Error()})
+				} else {
+					fmt.Printf(display.FIXED()+"Subnet '%s' — auto-assign public IP restored to %v\n", drift.Resource, blSub.AutoAssignPublicIP)
+					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.Resource, Type: drift.Type})
+				}
 			}
 
 		default:

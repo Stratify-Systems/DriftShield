@@ -178,7 +178,7 @@ func CompareRDSWithBaseline(ctx context.Context) ([]types.RDSDrift, bool, error)
 }
 
 // RemediateRDSDrift restores drifted RDS instance settings back to baseline.
-func RemediateRDSDrift(ctx context.Context, drifts []types.RDSDrift) (*types.RemediationResults, error) {
+func RemediateRDSDrift(ctx context.Context, drifts []types.RDSDrift, dryRun bool) (*types.RemediationResults, error) {
 	bl, err := LoadRDSBaseline()
 	if err != nil || bl == nil {
 		return nil, fmt.Errorf("failed to load RDS baseline")
@@ -202,25 +202,30 @@ func RemediateRDSDrift(ctx context.Context, drifts []types.RDSDrift) (*types.Rem
 
 		switch drift.Type {
 		case "PUBLIC_ACCESS_CHANGED", "DELETION_PROTECTION_CHANGED", "AUTO_MINOR_UPGRADE_CHANGED":
-			input := &rds.ModifyDBInstanceInput{
-				DBInstanceIdentifier: aws.String(drift.InstanceID),
-				ApplyImmediately:     aws.Bool(true),
-			}
-			switch drift.Type {
-			case "PUBLIC_ACCESS_CHANGED":
-				input.PubliclyAccessible = aws.Bool(blSnap.PubliclyAccessible)
-			case "DELETION_PROTECTION_CHANGED":
-				input.DeletionProtection = aws.Bool(blSnap.DeletionProtection)
-			case "AUTO_MINOR_UPGRADE_CHANGED":
-				input.AutoMinorVersionUpgrade = aws.Bool(blSnap.AutoMinorUpgrade)
-			}
-			_, fErr := client.ModifyDBInstance(ctx, input)
-			if fErr != nil {
-				fmt.Printf(display.FAILED()+"Instance '%s' — could not restore %s: %v\n", drift.InstanceID, drift.Type, fErr)
-				res.Failed = append(res.Failed, types.RemediationItem{Name: drift.InstanceID, Type: drift.Type, Error: fErr.Error()})
-			} else {
-				fmt.Printf(display.FIXED()+"Instance '%s' — %s restored to %s\n", drift.InstanceID, drift.Type, drift.OldValue)
+			if dryRun {
+				fmt.Printf("[DRY-RUN] Would restore %s to %s for instance %s\n", drift.Type, drift.OldValue, drift.InstanceID)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.InstanceID, Type: drift.Type})
+			} else {
+				input := &rds.ModifyDBInstanceInput{
+					DBInstanceIdentifier: aws.String(drift.InstanceID),
+					ApplyImmediately:     aws.Bool(true),
+				}
+				switch drift.Type {
+				case "PUBLIC_ACCESS_CHANGED":
+					input.PubliclyAccessible = aws.Bool(blSnap.PubliclyAccessible)
+				case "DELETION_PROTECTION_CHANGED":
+					input.DeletionProtection = aws.Bool(blSnap.DeletionProtection)
+				case "AUTO_MINOR_UPGRADE_CHANGED":
+					input.AutoMinorVersionUpgrade = aws.Bool(blSnap.AutoMinorUpgrade)
+				}
+				_, fErr := client.ModifyDBInstance(ctx, input)
+				if fErr != nil {
+					fmt.Printf(display.FAILED()+"Instance '%s' — could not restore %s: %v\n", drift.InstanceID, drift.Type, fErr)
+					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.InstanceID, Type: drift.Type, Error: fErr.Error()})
+				} else {
+					fmt.Printf(display.FIXED()+"Instance '%s' — %s restored to %s\n", drift.InstanceID, drift.Type, drift.OldValue)
+					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.InstanceID, Type: drift.Type})
+				}
 			}
 
 		default:

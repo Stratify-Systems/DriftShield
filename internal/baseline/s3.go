@@ -248,7 +248,7 @@ func CompareS3WithBaseline(ctx context.Context) ([]types.S3Drift, bool, error) {
 }
 
 // RemediateS3Drift fixes drifted S3 configurations back to baseline.
-func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.RemediationResults, error) {
+func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift, dryRun bool) (*types.RemediationResults, error) {
 	if len(drifts) == 0 {
 		fmt.Println(display.INFO() + "No drifts to remediate.")
 		return &types.RemediationResults{}, nil
@@ -287,69 +287,87 @@ func RemediateS3Drift(ctx context.Context, drifts []types.S3Drift) (*types.Remed
 		switch drift.Type {
 		case "PUBLIC_ACCESS_CHANGED":
 			pab := blCfg.PublicAccessBlock
-			_, fErr := client.PutPublicAccessBlock(ctx, &s3.PutPublicAccessBlockInput{
-				Bucket: aws.String(bucket),
-				PublicAccessBlockConfiguration: &s3types.PublicAccessBlockConfiguration{
-					BlockPublicAcls:       aws.Bool(pab["BlockPublicAcls"]),
-					IgnorePublicAcls:      aws.Bool(pab["IgnorePublicAcls"]),
-					BlockPublicPolicy:     aws.Bool(pab["BlockPublicPolicy"]),
-					RestrictPublicBuckets: aws.Bool(pab["RestrictPublicBuckets"]),
-				},
-			})
-			if fErr != nil {
-				fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
-				res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
-			} else {
-				fmt.Printf(display.FIXED()+"%s - Public access block restored\n", bucket)
+			if dryRun {
+				fmt.Printf("[DRY-RUN] Would restore PublicAccessBlock for %s\n", bucket)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
-			}
-
-		case "VERSIONING_CHANGED":
-			status := s3types.BucketVersioningStatusSuspended
-			if blCfg.Versioning == "Enabled" {
-				status = s3types.BucketVersioningStatusEnabled
-			}
-			_, fErr := client.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
-				Bucket:                  aws.String(bucket),
-				VersioningConfiguration: &s3types.VersioningConfiguration{Status: status},
-			})
-			if fErr != nil {
-				fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
-				res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 			} else {
-				fmt.Printf(display.FIXED()+"%s - Versioning restored to %s\n", bucket, blCfg.Versioning)
-				res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
-			}
-
-		case "ENCRYPTION_CHANGED":
-			if blCfg.Encryption != "" && blCfg.Encryption != "None" && blCfg.Encryption != "Unknown" {
-				_, fErr := client.PutBucketEncryption(ctx, &s3.PutBucketEncryptionInput{
+				_, fErr := client.PutPublicAccessBlock(ctx, &s3.PutPublicAccessBlockInput{
 					Bucket: aws.String(bucket),
-					ServerSideEncryptionConfiguration: &s3types.ServerSideEncryptionConfiguration{
-						Rules: []s3types.ServerSideEncryptionRule{{
-							ApplyServerSideEncryptionByDefault: &s3types.ServerSideEncryptionByDefault{
-								SSEAlgorithm: s3types.ServerSideEncryption(blCfg.Encryption),
-							},
-						}},
+					PublicAccessBlockConfiguration: &s3types.PublicAccessBlockConfiguration{
+						BlockPublicAcls:       aws.Bool(pab["BlockPublicAcls"]),
+						IgnorePublicAcls:      aws.Bool(pab["IgnorePublicAcls"]),
+						BlockPublicPolicy:     aws.Bool(pab["BlockPublicPolicy"]),
+						RestrictPublicBuckets: aws.Bool(pab["RestrictPublicBuckets"]),
 					},
 				})
 				if fErr != nil {
 					fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
 					res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 				} else {
-					fmt.Printf(display.FIXED()+"%s - Encryption restored to %s\n", bucket, blCfg.Encryption)
+					fmt.Printf(display.FIXED()+"%s - Public access block restored\n", bucket)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
 				}
+			}
+		case "VERSIONING_CHANGED":
+			if dryRun {
+				fmt.Printf("[DRY-RUN] Would restore Versioning to %s for %s\n", blCfg.Versioning, bucket)
+				res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
 			} else {
-				_, fErr := client.DeleteBucketEncryption(ctx, &s3.DeleteBucketEncryptionInput{
-					Bucket: aws.String(bucket),
+				status := s3types.BucketVersioningStatusSuspended
+				if blCfg.Versioning == "Enabled" {
+					status = s3types.BucketVersioningStatusEnabled
+				}
+				_, fErr := client.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
+					Bucket:                  aws.String(bucket),
+					VersioningConfiguration: &s3types.VersioningConfiguration{Status: status},
 				})
 				if fErr != nil {
 					fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
 					res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
 				} else {
-					fmt.Printf(display.FIXED()+"%s - Encryption removed (baseline had none)\n", bucket)
+					fmt.Printf(display.FIXED()+"%s - Versioning restored to %s\n", bucket, blCfg.Versioning)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
+				}
+			}
+		case "ENCRYPTION_CHANGED":
+			if blCfg.Encryption != "" && blCfg.Encryption != "None" && blCfg.Encryption != "Unknown" {
+				if dryRun {
+					fmt.Printf("[DRY-RUN] Would restore Encryption to %s for %s\n", blCfg.Encryption, bucket)
+					res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
+				} else {
+					_, fErr := client.PutBucketEncryption(ctx, &s3.PutBucketEncryptionInput{
+						Bucket: aws.String(bucket),
+						ServerSideEncryptionConfiguration: &s3types.ServerSideEncryptionConfiguration{
+							Rules: []s3types.ServerSideEncryptionRule{{
+								ApplyServerSideEncryptionByDefault: &s3types.ServerSideEncryptionByDefault{
+									SSEAlgorithm: s3types.ServerSideEncryption(blCfg.Encryption),
+								},
+							}},
+						},
+					})
+					if fErr != nil {
+						fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
+						res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
+					} else {
+						fmt.Printf(display.FIXED()+"%s - Encryption restored to %s\n", bucket, blCfg.Encryption)
+						res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
+					}
+				}
+			} else {
+				if dryRun {
+					fmt.Printf("[DRY-RUN] Would remove Encryption for %s\n", bucket)
+					res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
+				} else {
+					_, fErr := client.DeleteBucketEncryption(ctx, &s3.DeleteBucketEncryptionInput{
+						Bucket: aws.String(bucket),
+					})
+					if fErr != nil {
+						fmt.Printf(display.FAILED()+"%s - %v\n", bucket, fErr)
+						res.Failed = append(res.Failed, types.RemediationItem{Bucket: bucket, Type: drift.Type, Error: fErr.Error()})
+					} else {
+						fmt.Printf(display.FIXED()+"%s - Encryption removed (baseline had none)\n", bucket)
+						res.Fixed = append(res.Fixed, types.RemediationItem{Bucket: bucket, Type: drift.Type})
+					}
 				}
 			}
 

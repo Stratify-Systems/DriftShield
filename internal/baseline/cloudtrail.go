@@ -243,7 +243,7 @@ func CompareCloudTrailWithBaseline(ctx context.Context) ([]types.CloudTrailDrift
 }
 
 // RemediateCloudTrailDrift restores drifted trail settings back to baseline.
-func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrift) (*types.RemediationResults, error) {
+func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrift, dryRun bool) (*types.RemediationResults, error) {
 	bl, err := LoadCloudTrailBaseline()
 	if err != nil || bl == nil {
 		return nil, fmt.Errorf("failed to load CloudTrail baseline")
@@ -264,26 +264,36 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 				continue
 			}
 			if blTrail.IsLogging {
-				_, fErr := client.StartLogging(ctx, &cloudtrail.StartLoggingInput{
-					Name: aws.String(drift.TrailName),
-				})
-				if fErr != nil {
-					fmt.Printf(display.FAILED()+"Trail '%s' — could not re-enable logging: %v\n", drift.TrailName, fErr)
-					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
-				} else {
-					fmt.Printf(display.FIXED()+"Trail '%s' — logging re-enabled\n", drift.TrailName)
+				if dryRun {
+					fmt.Printf("[DRY-RUN] Would re-enable logging for trail %s\n", drift.TrailName)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
+				} else {
+					_, fErr := client.StartLogging(ctx, &cloudtrail.StartLoggingInput{
+						Name: aws.String(drift.TrailName),
+					})
+					if fErr != nil {
+						fmt.Printf(display.FAILED()+"Trail '%s' — could not re-enable logging: %v\n", drift.TrailName, fErr)
+						res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
+					} else {
+						fmt.Printf(display.FIXED()+"Trail '%s' — logging re-enabled\n", drift.TrailName)
+						res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
+					}
 				}
 			} else {
-				_, fErr := client.StopLogging(ctx, &cloudtrail.StopLoggingInput{
-					Name: aws.String(drift.TrailName),
-				})
-				if fErr != nil {
-					fmt.Printf(display.FAILED()+"Trail '%s' — could not stop logging: %v\n", drift.TrailName, fErr)
-					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
-				} else {
-					fmt.Printf(display.FIXED()+"Trail '%s' — logging stopped (restored to baseline)\n", drift.TrailName)
+				if dryRun {
+					fmt.Printf("[DRY-RUN] Would stop logging for trail %s\n", drift.TrailName)
 					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
+				} else {
+					_, fErr := client.StopLogging(ctx, &cloudtrail.StopLoggingInput{
+						Name: aws.String(drift.TrailName),
+					})
+					if fErr != nil {
+						fmt.Printf(display.FAILED()+"Trail '%s' — could not stop logging: %v\n", drift.TrailName, fErr)
+						res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
+					} else {
+						fmt.Printf(display.FIXED()+"Trail '%s' — logging stopped (restored to baseline)\n", drift.TrailName)
+						res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
+					}
 				}
 			}
 
@@ -292,16 +302,21 @@ func RemediateCloudTrailDrift(ctx context.Context, drifts []types.CloudTrailDrif
 			if !ok {
 				continue
 			}
-			_, fErr := client.UpdateTrail(ctx, &cloudtrail.UpdateTrailInput{
-				Name:                    aws.String(drift.TrailName),
-				EnableLogFileValidation: aws.Bool(blTrail.LogValidation),
-			})
-			if fErr != nil {
-				fmt.Printf(display.FAILED()+"Trail '%s' — could not restore log validation: %v\n", drift.TrailName, fErr)
-				res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
-			} else {
-				fmt.Printf(display.FIXED()+"Trail '%s' — log file validation restored to %v\n", drift.TrailName, blTrail.LogValidation)
+			if dryRun {
+				fmt.Printf("[DRY-RUN] Would restore log validation to %v for trail %s\n", blTrail.LogValidation, drift.TrailName)
 				res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
+			} else {
+				_, fErr := client.UpdateTrail(ctx, &cloudtrail.UpdateTrailInput{
+					Name:                    aws.String(drift.TrailName),
+					EnableLogFileValidation: aws.Bool(blTrail.LogValidation),
+				})
+				if fErr != nil {
+					fmt.Printf(display.FAILED()+"Trail '%s' — could not restore log validation: %v\n", drift.TrailName, fErr)
+					res.Failed = append(res.Failed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type, Error: fErr.Error()})
+				} else {
+					fmt.Printf(display.FIXED()+"Trail '%s' — log file validation restored to %v\n", drift.TrailName, blTrail.LogValidation)
+					res.Fixed = append(res.Fixed, types.RemediationItem{Name: drift.TrailName, Type: drift.Type})
+				}
 			}
 
 		default:

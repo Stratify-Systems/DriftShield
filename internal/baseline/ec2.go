@@ -201,8 +201,8 @@ func CompareEC2WithBaseline(ctx context.Context) ([]types.EC2Drift, error) {
 	return drifts, nil
 }
 
-// RemediateEC2Drift reverts drifted security groups back to their baseline rules.
-func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift) (*types.RemediationResults, error) {
+// RemediateEC2Drift reverts the actual EC2 security groups back to the state defined in the baseline.
+func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift, dryRun bool) (*types.RemediationResults, error) {
 	if len(drifts) == 0 {
 		fmt.Println(display.INFO() + "No drifts to remediate.")
 		return &types.RemediationResults{}, nil
@@ -216,57 +216,87 @@ func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift) (*types.Rem
 	res := &types.RemediationResults{}
 	fmt.Println("Starting remediation...")
 
-	for _, drift := range drifts {
-		sgID := drift.SecurityGroup
-		sgName := drift.Name
+	for _, d := range drifts {
+		sgID := d.SecurityGroup
+		sgName := d.Name
 
-		if drift.Type == "NEW_SECURITY_GROUP" || drift.Type == "SECURITY_GROUP_DELETED" {
+		if d.Type == "NEW_SECURITY_GROUP" || d.Type == "SECURITY_GROUP_DELETED" {
 			msg := "Creating or deleting security groups is skipped to prevent accidental lockouts or infrastructure disruption. Please resolve manually or update the baseline."
-			fmt.Printf(display.SKIP()+"%s (%s) - %s\n          %s\n", sgName, sgID, drift.Type, msg)
+			fmt.Printf(display.SKIP()+"%s (%s) - %s\n          %s\n", sgName, sgID, d.Type, msg)
 			res.Skipped = append(res.Skipped, types.RemediationItem{
-				SecurityGroup: sgID, Name: sgName, Type: drift.Type, Reason: msg,
+				SecurityGroup: sgID, Name: sgName, Type: d.Type, Reason: msg,
 			})
 			continue
 		}
 
-		if drift.Type == "RULES_CHANGED" {
+		if d.Type == "RULES_CHANGED" {
 			// Revoke added rules
-			for _, rule := range drift.AddedRules {
-				desc := fmt.Sprintf("Added: %s %d-%d from %v", rule.Protocol, rule.FromPort, rule.ToPort, rule.Sources)
-				perm := buildIpPermission(rule)
-				_, rErr := client.RevokeSecurityGroupIngress(ctx, &ec2.RevokeSecurityGroupIngressInput{
-					GroupId: aws.String(sgID), IpPermissions: []ec2types.IpPermission{perm},
-				})
-				if rErr != nil {
-					fmt.Printf(display.FAILED()+"%s - Could not revoke rule: %v\n", sgName, rErr)
-					res.Failed = append(res.Failed, types.RemediationItem{
-						SecurityGroup: sgID, Name: sgName, Type: drift.Type, Error: rErr.Error(),
+			for _, r := range d.AddedRules {
+				msg := fmt.Sprintf("Missing rule in baseline (port %v from %v)", r.FromPort, r.Sources)
+				if dryRun {
+					fmt.Printf("[DRY-RUN] Would revoke: %s (SG: %s)\n", msg, d.SecurityGroup)
+					res.Fixed = append(res.Fixed, types.RemediationItem{
+						Name:          d.Name,
+						SecurityGroup: d.SecurityGroup,
+						Type:          "REVOKED_DRIFT_RULE",
 					})
 				} else {
-					fmt.Printf(display.FIXED()+"%s - Revoked rule to restore baseline\n", sgName)
-					res.Fixed = append(res.Fixed, types.RemediationItem{
-						SecurityGroup: sgID, Name: sgName, Type: drift.Type, RuleRemoved: desc,
+					perm := buildIpPermission(r)
+					_, err := client.RevokeSecurityGroupIngress(ctx, &ec2.RevokeSecurityGroupIngressInput{
+						GroupId:       aws.String(d.SecurityGroup),
+						IpPermissions: []ec2types.IpPermission{perm},
 					})
+					if err != nil {
+						fmt.Printf(display.FAILED()+"Failed to revoke: %v\n", err)
+						res.Failed = append(res.Failed, types.RemediationItem{
+							Name:          d.Name,
+							SecurityGroup: d.SecurityGroup,
+							Type:          "REVOKE_FAILED",
+							Error:         err.Error(),
+						})
+					} else {
+						fmt.Printf(display.FIXED()+"Revoked: %s\n", msg)
+						res.Fixed = append(res.Fixed, types.RemediationItem{
+							Name:          d.Name,
+							SecurityGroup: d.SecurityGroup,
+							Type:          "REVOKED_DRIFT_RULE",
+						})
+					}
 				}
 			}
 
 			// Authorize removed rules
-			for _, rule := range drift.RemovedRules {
-				desc := fmt.Sprintf("Removed: %s %d-%d from %v", rule.Protocol, rule.FromPort, rule.ToPort, rule.Sources)
-				perm := buildIpPermission(rule)
-				_, rErr := client.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
-					GroupId: aws.String(sgID), IpPermissions: []ec2types.IpPermission{perm},
-				})
-				if rErr != nil {
-					fmt.Printf(display.FAILED()+"%s - Could not authorize rule: %v\n", sgName, rErr)
-					res.Failed = append(res.Failed, types.RemediationItem{
-						SecurityGroup: sgID, Name: sgName, Type: drift.Type, Error: rErr.Error(),
+			for _, r := range d.RemovedRules {
+				msg := fmt.Sprintf("Rule missing in AWS but exists in baseline (port %v from %v)", r.FromPort, r.Sources)
+				if dryRun {
+					fmt.Printf("[DRY-RUN] Would authorize: %s (SG: %s)\n", msg, d.SecurityGroup)
+					res.Fixed = append(res.Fixed, types.RemediationItem{
+						Name:          d.Name,
+						SecurityGroup: d.SecurityGroup,
+						Type:          "RESTORED_BASELINE_RULE",
 					})
 				} else {
-					fmt.Printf(display.FIXED()+"%s - Authorized rule to restore baseline\n", sgName)
-					res.Fixed = append(res.Fixed, types.RemediationItem{
-						SecurityGroup: sgID, Name: sgName, Type: drift.Type, RuleRemoved: desc,
+					perm := buildIpPermission(r)
+					_, err := client.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
+						GroupId:       aws.String(d.SecurityGroup),
+						IpPermissions: []ec2types.IpPermission{perm},
 					})
+					if err != nil {
+						fmt.Printf(display.FAILED()+"Failed to authorize: %v\n", err)
+						res.Failed = append(res.Failed, types.RemediationItem{
+							Name:          d.Name,
+							SecurityGroup: d.SecurityGroup,
+							Type:          "AUTHORIZE_FAILED",
+							Error:         err.Error(),
+						})
+					} else {
+						fmt.Printf(display.FIXED()+"Restored: %s\n", msg)
+						res.Fixed = append(res.Fixed, types.RemediationItem{
+							Name:          d.Name,
+							SecurityGroup: d.SecurityGroup,
+							Type:          "RESTORED_BASELINE_RULE",
+						})
+					}
 				}
 			}
 		}
