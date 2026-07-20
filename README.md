@@ -167,6 +167,10 @@ To secure your remote state bucket, we recommend attaching a bucket policy that 
 DriftShield supports several global flags that can be applied to its commands:
 - `-r, --region string` : Specify the AWS region (e.g., `us-east-1`). If not provided, it falls back to `.env` or standard AWS config.
 - `-d, --dry-run` : Simulate the `fix` command without actually making any destructive changes to your AWS environment. Highly recommended for CI/CD pipelines!
+### CI/CD Integration
+DriftShield is built for automated security pipelines.
+- **Exit Codes:** If DriftShield detects any misconfigurations during a `scan` or drifts during a `drift` check, it automatically terminates with an `Exit Code 1`. This safely fails your CI/CD pipeline, blocking insecure deployments.
+- **Dry-Run Remediation:** Running `driftshield all fix --dry-run` will output exactly what AWS API calls *would* have been made, allowing you to preview remediation in a safe, non-destructive way in CI.
 
 ### S3 Commands
 ```bash

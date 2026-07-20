@@ -539,6 +539,7 @@ runAllDrifts() in main.go
 Mutes display banner
 Calls runS3Drift(), runEC2Drift(), runIAMDrift(), runCloudTrailDrift(), runRDSDrift(), runVPCDrift()
 Unmutes display banner
+If any drift is detected across any service, sets global `exitWithFailure = true` and eventually exits with `os.Exit(1)` (CI/CD integration)
 ```
 
 ### `driftshield cloudtrail fix`
@@ -570,6 +571,7 @@ runAllScans() in main.go
 Calls ScanAllBuckets, ScanSecurityGroups, ScanIAM, ScanCloudTrail, ScanRDS, ScanVPC
 Collects total risks across all 6 services
 If total > 0:
+  Sets global `exitWithFailure = true` (CI/CD failure)
   SendS3Alerts, SendEC2Alerts, SendIAMAlerts, SendCloudTrailAlerts, SendRDSAlerts, SendVPCAlerts
 ```
 

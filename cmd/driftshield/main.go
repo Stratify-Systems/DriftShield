@@ -24,6 +24,9 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+	if exitWithFailure {
+		os.Exit(1)
+	}
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -39,6 +42,7 @@ misconfigurations and monitors configuration drift against a secure baseline.`,
 }
 
 var dryRun bool
+var exitWithFailure bool
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&config.CurrentRegion, "region", "r", "", "AWS region (e.g., us-east-1)")
@@ -174,6 +178,7 @@ func runS3Scan() {
 		for _, b := range results.AtRisk {
 			fmt.Printf("    - %s\n", b)
 		}
+		exitWithFailure = true
 		alerts.SendS3Alerts(ctx, results.AtRisk)
 	} else {
 		fmt.Println("\n[+] All buckets are secure. No action required.")
@@ -209,6 +214,7 @@ func runS3Drift() {
 		printBox("DRIFT DETECTION RESULTS", []string{
 			fmt.Sprintf("Configuration drifts found: %d", len(drifts)),
 		})
+		exitWithFailure = true
 		alerts.SendS3DriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] All configurations match baseline. No drift detected.")
@@ -282,6 +288,7 @@ func runEC2Scan() {
 				fmt.Printf("    - %s (%s)\n", d.Config.GroupName, sgID)
 			}
 		}
+		exitWithFailure = true
 		alerts.SendEC2Alerts(ctx, results.AtRisk, results.Details)
 	} else {
 		fmt.Println("\n[+] All security groups are secure. No action required.")
@@ -343,6 +350,7 @@ func runEC2Drift() {
 			}
 		}
 		fmt.Println("\n" + strings.Repeat("-", 60))
+		exitWithFailure = true
 		alerts.SendEC2DriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] All EC2 configurations match baseline. No drift detected.")
@@ -411,6 +419,7 @@ func runIAMScan() {
 
 	if len(results.Findings) > 0 {
 		fmt.Println("\n[!] ACTION REQUIRED - IAM issues detected")
+		exitWithFailure = true
 		alerts.SendIAMAlerts(ctx, results.Findings)
 	} else {
 		fmt.Println("\n[+] No IAM issues found.")
@@ -455,6 +464,7 @@ func runIAMDrift() {
 			}
 		}
 		fmt.Println("\n" + strings.Repeat("-", 60))
+		exitWithFailure = true
 		alerts.SendIAMDriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] IAM configuration matches baseline. No drift detected.")
@@ -516,6 +526,7 @@ func runCloudTrailScan() {
 
 	if len(results.Findings) > 0 {
 		fmt.Println("\n[!] ACTION REQUIRED - CloudTrail issues detected")
+		exitWithFailure = true
 		alerts.SendCloudTrailAlerts(ctx, results.Findings)
 	} else {
 		fmt.Println("\n[+] CloudTrail configuration looks secure.")
@@ -560,6 +571,7 @@ func runCloudTrailDrift() {
 			}
 		}
 		fmt.Println("\n" + strings.Repeat("-", 60))
+		exitWithFailure = true
 		alerts.SendCloudTrailDriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] CloudTrail configuration matches baseline. No drift detected.")
@@ -656,6 +668,7 @@ func runRDSScan() {
 
 	if len(results.Findings) > 0 {
 		fmt.Println("\n[!] ACTION REQUIRED - RDS issues detected")
+		exitWithFailure = true
 		alerts.SendRDSAlerts(ctx, results.Findings)
 	} else {
 		fmt.Println("\n[+] All RDS instances look secure.")
@@ -700,6 +713,7 @@ func runRDSDrift() {
 			}
 		}
 		fmt.Println("\n" + strings.Repeat("-", 60))
+		exitWithFailure = true
 		alerts.SendRDSDriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] RDS configuration matches baseline. No drift detected.")
@@ -798,6 +812,7 @@ func runVPCScan() {
 
 	if len(results.Findings) > 0 {
 		fmt.Println("\n[!] ACTION REQUIRED - VPC issues detected")
+		exitWithFailure = true
 		alerts.SendVPCAlerts(ctx, results.Findings)
 	} else {
 		fmt.Println("\n[+] All VPC configurations look secure.")
@@ -842,6 +857,7 @@ func runVPCDrift() {
 			}
 		}
 		fmt.Println("\n" + strings.Repeat("-", 60))
+		exitWithFailure = true
 		alerts.SendVPCDriftAlerts(ctx, drifts)
 	} else {
 		fmt.Println("\n[+] VPC configuration matches baseline. No drift detected.")
@@ -1017,6 +1033,7 @@ func runAllScans() {
 	total := s3Risk + ec2Risk + iamFindings + ctFindings + rdsFindings + vpcFindings
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
+		exitWithFailure = true
 
 		// Send alerts for any found risks/findings
 		if s3Risk > 0 {
