@@ -43,9 +43,6 @@ func sendEmail(ctx context.Context, subject, textBody, htmlBody string) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	fmt.Printf("[EMAIL] Sent successfully. Message ID: %s\n", aws.ToString(out.MessageId))
 	return nil
 }

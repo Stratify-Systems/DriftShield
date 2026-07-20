@@ -315,7 +315,8 @@ func runEC2Drift() {
 		fmt.Println(strings.Repeat("-", 60))
 		for _, d := range drifts {
 			fmt.Printf("\n  %s (%s)\n  Type: %s\n", d.Name, d.SecurityGroup, d.Type)
-			if d.Type == "RULES_CHANGED" {
+			switch d.Type {
+			case "RULES_CHANGED":
 				if len(d.AddedRules) > 0 {
 					fmt.Println("  Rules ADDED:")
 					for _, r := range d.AddedRules {
@@ -328,9 +329,9 @@ func runEC2Drift() {
 						fmt.Printf("    - %s from %v\n", display.GetPortDescription(r.Protocol, r.FromPort, r.ToPort), r.Sources)
 					}
 				}
-			} else if d.Type == "NEW_SECURITY_GROUP" {
+			case "NEW_SECURITY_GROUP":
 				fmt.Println("  Status: New security group (not in baseline)")
-			} else if d.Type == "SECURITY_GROUP_DELETED" {
+			case "SECURITY_GROUP_DELETED":
 				fmt.Println("  Status: Security group was deleted")
 			}
 		}
