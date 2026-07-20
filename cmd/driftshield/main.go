@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -941,162 +942,180 @@ func runAllScans() {
 	fmt.Printf("Scan started at: %s\n", now())
 	fmt.Printf("Region:          %s\n\n", config.GetRegion())
 
+	type scanResult struct {
+		name       string
+		secure     int
+		risk       int
+		findings   int
+		alertFn    func()
+	}
+
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		results []scanResult
+	)
+
+	addResult := func(r scanResult) {
+		mu.Lock()
+		results = append(results, r)
+		mu.Unlock()
+	}
+
 	// S3
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  S3 BUCKET SCAN")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println()
-	s3Results, s3Err := scanner.ScanAllBuckets(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s3Results, err := scanner.ScanAllBuckets(ctx)
+		if err != nil {
+			return
+		}
+		addResult(scanResult{
+			name: "S3", secure: len(s3Results.Secure), risk: len(s3Results.AtRisk),
+			alertFn: func() { alerts.SendS3Alerts(ctx, s3Results.AtRisk) },
+		})
+	}()
 
 	// EC2
-	fmt.Println()
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  EC2 SECURITY GROUP SCAN")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println()
-	ec2Results, ec2Err := scanner.ScanSecurityGroups(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ec2Results, err := scanner.ScanSecurityGroups(ctx)
+		if err != nil {
+			return
+		}
+		addResult(scanResult{
+			name: "EC2", secure: len(ec2Results.Secure), risk: len(ec2Results.AtRisk),
+			alertFn: func() { alerts.SendEC2Alerts(ctx, ec2Results.AtRisk, ec2Results.Details) },
+		})
+	}()
 
 	// IAM
-	fmt.Println()
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  IAM SECURITY SCAN")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println()
-	iamResults, iamErr := scanner.ScanIAM(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		iamResults, err := scanner.ScanIAM(ctx)
+		if err != nil {
+			return
+		}
+		addResult(scanResult{
+			name: "IAM", findings: len(iamResults.Findings),
+			alertFn: func() { alerts.SendIAMAlerts(ctx, iamResults.Findings) },
+		})
+	}()
 
 	// CloudTrail
-	fmt.Println()
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  CLOUDTRAIL SECURITY SCAN")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println()
-	ctResults, ctErr := scanner.ScanCloudTrail(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ctResults, err := scanner.ScanCloudTrail(ctx)
+		if err != nil {
+			return
+		}
+		addResult(scanResult{
+			name: "CloudTrail", findings: len(ctResults.Findings),
+			alertFn: func() { alerts.SendCloudTrailAlerts(ctx, ctResults.Findings) },
+		})
+	}()
 
 	// RDS
-	fmt.Println()
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  RDS SECURITY SCAN")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println()
-	rdsResults, rdsErr := scanner.ScanRDS(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		rdsResults, err := scanner.ScanRDS(ctx)
+		if err != nil {
+			return
+		}
+		addResult(scanResult{
+			name: "RDS", findings: len(rdsResults.Findings),
+			alertFn: func() { alerts.SendRDSAlerts(ctx, rdsResults.Findings) },
+		})
+	}()
 
 	// VPC
-	fmt.Println()
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println("  VPC SECURITY SCAN")
-	fmt.Println(strings.Repeat("=", 60))
-	fmt.Println()
-	vpcResults, vpcErr := scanner.ScanVPC(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		vpcResults, err := scanner.ScanVPC(ctx)
+		if err != nil {
+			return
+		}
+		addResult(scanResult{
+			name: "VPC", findings: len(vpcResults.Findings),
+			alertFn: func() { alerts.SendVPCAlerts(ctx, vpcResults.Findings) },
+		})
+	}()
 
-	s3Secure, s3Risk := 0, 0
-	if s3Err == nil {
-		s3Secure = len(s3Results.Secure)
-		s3Risk = len(s3Results.AtRisk)
-	}
-	ec2Secure, ec2Risk := 0, 0
-	if ec2Err == nil {
-		ec2Secure = len(ec2Results.Secure)
-		ec2Risk = len(ec2Results.AtRisk)
-	}
-	iamFindings := 0
-	if iamErr == nil {
-		iamFindings = len(iamResults.Findings)
-	}
-	ctFindings := 0
-	if ctErr == nil {
-		ctFindings = len(ctResults.Findings)
-	}
-	rdsFindings := 0
-	if rdsErr == nil {
-		rdsFindings = len(rdsResults.Findings)
-	}
-	vpcFindings := 0
-	if vpcErr == nil {
-		vpcFindings = len(vpcResults.Findings)
-	}
+	wg.Wait()
 
-	printBox("FULL SCAN RESULTS", []string{
-		"S3 Buckets:",
-		fmt.Sprintf("  Secure: %d, At-risk: %d", s3Secure, s3Risk),
-		"EC2 Security Groups:",
-		fmt.Sprintf("  Secure: %d, At-risk: %d", ec2Secure, ec2Risk),
-		"IAM:",
-		fmt.Sprintf("  Findings: %d", iamFindings),
-		"CloudTrail:",
-		fmt.Sprintf("  Findings: %d", ctFindings),
-		"RDS:",
-		fmt.Sprintf("  Findings: %d", rdsFindings),
-		"VPC:",
-		fmt.Sprintf("  Findings: %d", vpcFindings),
-	})
+	// Build summary
+	var lines []string
+	total := 0
+	for _, r := range results {
+		if r.risk > 0 || r.findings > 0 {
+			if r.risk > 0 {
+				lines = append(lines, fmt.Sprintf("%s: Secure: %d, At-risk: %d", r.name, r.secure, r.risk))
+				total += r.risk
+			} else {
+				lines = append(lines, fmt.Sprintf("%s: Findings: %d", r.name, r.findings))
+				total += r.findings
+			}
+		} else {
+			lines = append(lines, fmt.Sprintf("%s: ✔ Secure", r.name))
+		}
+	}
+	printBox("FULL SCAN RESULTS", lines)
 
-	total := s3Risk + ec2Risk + iamFindings + ctFindings + rdsFindings + vpcFindings
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
 		exitWithFailure = true
-
-		// Send alerts for any found risks/findings
-		if s3Risk > 0 {
-			alerts.SendS3Alerts(ctx, s3Results.AtRisk)
+		for _, r := range results {
+			if r.risk > 0 || r.findings > 0 {
+				r.alertFn()
+			}
 		}
-		if ec2Risk > 0 {
-			alerts.SendEC2Alerts(ctx, ec2Results.AtRisk, ec2Results.Details)
-		}
-		if iamFindings > 0 {
-			alerts.SendIAMAlerts(ctx, iamResults.Findings)
-		}
-		if ctFindings > 0 {
-			alerts.SendCloudTrailAlerts(ctx, ctResults.Findings)
-		}
-		if rdsFindings > 0 {
-			alerts.SendRDSAlerts(ctx, rdsResults.Findings)
-		}
-		if vpcFindings > 0 {
-			alerts.SendVPCAlerts(ctx, vpcResults.Findings)
-		}
-
 	} else {
 		fmt.Println("\n[+] All resources are secure!")
 	}
+}
+
+// allHandlers holds the ordered set of per-service handler functions.
+var allHandlers = []struct {
+	scan, baseline, drift, fix func()
+}{
+	{runS3Scan, runS3Baseline, runS3Drift, runS3Fix},
+	{runEC2Scan, runEC2Baseline, runEC2Drift, runEC2Fix},
+	{runIAMScan, runIAMBaseline, runIAMDrift, runIAMFix},
+	{runCloudTrailScan, runCloudTrailBaseline, runCloudTrailDrift, runCloudTrailFix},
+	{runRDSScan, runRDSBaseline, runRDSDrift, runRDSFix},
+	{runVPCScan, runVPCBaseline, runVPCDrift, runVPCFix},
 }
 
 func runAllBaselines() {
 	display.PrintBanner("CREATE ALL BASELINES")
 	display.MuteBanner = true
 	defer func() { display.MuteBanner = false }()
-
-	runS3Baseline()
-	runEC2Baseline()
-	runIAMBaseline()
-	runCloudTrailBaseline()
-	runRDSBaseline()
-	runVPCBaseline()
+	for _, h := range allHandlers {
+		h.baseline()
+	}
 }
 
 func runAllDrifts() {
 	display.PrintBanner("FULL DRIFT DETECTION")
 	display.MuteBanner = true
 	defer func() { display.MuteBanner = false }()
-
-	runS3Drift()
-	runEC2Drift()
-	runIAMDrift()
-	runCloudTrailDrift()
-	runRDSDrift()
-	runVPCDrift()
+	for _, h := range allHandlers {
+		h.drift()
+	}
 }
 
 func runAllFixes() {
 	display.PrintBanner("FULL REMEDIATION")
 	display.MuteBanner = true
 	defer func() { display.MuteBanner = false }()
-
-	runS3Fix()
-	runEC2Fix()
-	runIAMFix()
-	runCloudTrailFix()
-	runRDSFix()
-	runVPCFix()
+	for _, h := range allHandlers {
+		h.fix()
+	}
 }
 
 // ──────────────────────────────────────────────────────────────
