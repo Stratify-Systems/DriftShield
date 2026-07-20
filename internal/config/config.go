@@ -13,7 +13,9 @@ const Version = "2.0.0"
 // Default AWS region.
 var (
 	AWSRegion     = "ap-south-1"
-	CurrentRegion = ""
+	CurrentRegion     = ""
+	StateBucket       = ""
+	StateBucketRegion = ""
 )
 
 // SESConfig holds AWS SES email settings.
@@ -71,6 +73,12 @@ func init() {
 		Region:          getEnvOrDefault("DRIFTSHIELD_SNS_REGION", "ap-south-1"),
 		DefaultTopicARN: os.Getenv("DRIFTSHIELD_SNS_TOPIC_ARN"),
 		ServiceTopics:   map[string]string{},
+	}
+
+	StateBucket = os.Getenv("DRIFTSHIELD_STATE_BUCKET")
+	StateBucketRegion = os.Getenv("DRIFTSHIELD_STATE_BUCKET_REGION")
+	if StateBucketRegion == "" {
+		StateBucketRegion = AWSRegion // default to main region if not provided
 	}
 }
 
