@@ -58,7 +58,7 @@ func init() {
 
 	AWSSESConfig = SESConfig{
 		Enabled:        os.Getenv("DRIFTSHIELD_SES_ENABLED") == "true",
-		Region:         getEnvOrDefault("DRIFTSHIELD_SES_REGION", "ap-south-1"),
+		Region:         GetEnvOrDefault("DRIFTSHIELD_SES_REGION", "ap-south-1"),
 		SenderEmail:    os.Getenv("DRIFTSHIELD_SES_SENDER"),
 		RecipientEmail: os.Getenv("DRIFTSHIELD_SES_RECIPIENT"),
 	}
@@ -70,7 +70,7 @@ func init() {
 
 	SNSConfig = SNSSettings{
 		Enabled:         os.Getenv("DRIFTSHIELD_SNS_ENABLED") == "true",
-		Region:          getEnvOrDefault("DRIFTSHIELD_SNS_REGION", "ap-south-1"),
+		Region:          GetEnvOrDefault("DRIFTSHIELD_SNS_REGION", "ap-south-1"),
 		DefaultTopicARN: os.Getenv("DRIFTSHIELD_SNS_TOPIC_ARN"),
 		ServiceTopics:   map[string]string{},
 	}
@@ -82,7 +82,7 @@ func init() {
 	}
 }
 
-func getEnvOrDefault(key, defaultVal string) string {
+func GetEnvOrDefault(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
 	}

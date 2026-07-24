@@ -69,6 +69,10 @@ jobs:
           wget https://internal-artifacts.example.com/driftshield -O driftshield
           chmod +x driftshield
 
+      - name: Run Unit Tests
+        run: |
+          go test -v ./...
+
       - name: Run DriftShield Drift Detection
         env:
           DRIFTSHIELD_STATE_BUCKET: my-security-state-bucket

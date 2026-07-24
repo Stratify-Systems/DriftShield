@@ -97,5 +97,5 @@ func GenerateBaselineFromAI(ctx context.Context, uctx *UserContext) (*GeneratedR
 
 	jsonText := groqResp.Choices[0].Message.Content
 
-	return parseGeneratedResponse([]byte(jsonText))
+	return ParseGeneratedResponse([]byte(jsonText))
 }

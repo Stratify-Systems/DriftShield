@@ -150,7 +150,7 @@ INSTRUCTIONS:
 	return prompt
 }
 
-func parseGeneratedResponse(data []byte) (*GeneratedRecommendations, error) {
+func ParseGeneratedResponse(data []byte) (*GeneratedRecommendations, error) {
 	var resp GeneratedRecommendations
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON response: %w", err)

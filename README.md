@@ -65,6 +65,14 @@ DriftShield/
 │   ├── cloudtrail_baseline.json # CloudTrail baseline snapshot
 │   ├── vpc_baseline.json        # VPC baseline snapshot
 │   └── rds_baseline.json        # RDS baseline snapshot
+├── tests/                       # Unit test suite
+│   ├── ai_test.go               # AI generator & schema unit tests
+│   ├── alerts_test.go           # Alert dispatching unit tests
+│   ├── baseline_test.go         # Baseline comparison & remediation unit tests
+│   ├── config_test.go           # Configuration & environment unit tests
+│   ├── display_test.go          # Display formatting unit tests
+│   ├── scanner_test.go          # Scanner rule evaluation unit tests
+│   └── storage_test.go          # Storage backend unit tests
 ├── scripts/
 │   └── scheduled_scan.sh        # Cron job script
 ├── logs/
@@ -557,6 +565,7 @@ Example filter policy (only CRITICAL scan alerts):
 
 ```bash
 make build     # Build the driftshield binary
+make test      # Run unit tests across all packages
 make run       # Run without building
 make install   # Install to $GOPATH/bin
 make tidy      # Run go mod tidy
