@@ -50,9 +50,12 @@ DriftShield/
 │   │   └── rds.go               # RDS baseline management
 │   ├── ai/
 │   │   ├── client.go            # Groq API client
-│   │   ├── conversation.go      # Interactive CLI prompts
-│   │   ├── generator.go         # Baseline generation logic
-│   │   └── prompt.go            # LLM prompt construction
+│   │   ├── conversation.go      # Interactive AI Policy CLI prompts
+│   │   └── policy_generator.go  # AI policy rule generator
+│   ├── policy/
+│   │   ├── evaluator.go         # Condition evaluation engine
+│   │   ├── loader.go            # YAML policy parser & defaults
+│   │   └── schema.go            # PolicyRule schema definitions
 │   ├── storage/
 │   │   └── state.go             # S3 / local state backend
 │   └── alerts/
@@ -66,12 +69,21 @@ DriftShield/
 │   ├── cloudtrail_baseline.json # CloudTrail baseline snapshot
 │   ├── vpc_baseline.json        # VPC baseline snapshot
 │   └── rds_baseline.json        # RDS baseline snapshot
+├── policies/                    # Policy-as-Code YAML rules
+│   ├── s3_policies.yaml
+│   ├── ec2_policies.yaml
+│   ├── iam_policies.yaml
+│   ├── rds_policies.yaml
+│   ├── vpc_policies.yaml
+│   ├── cloudtrail_policies.yaml
+│   └── custom_policy.yaml
 ├── tests/                       # Unit test suite
 │   ├── ai_test.go               # AI generator & schema unit tests
 │   ├── alerts_test.go           # Alert dispatching unit tests
 │   ├── baseline_test.go         # Baseline comparison & remediation unit tests
 │   ├── config_test.go           # Configuration & environment unit tests
 │   ├── display_test.go          # Display formatting unit tests
+│   ├── policy_test.go           # Policy evaluation unit tests
 │   ├── scanner_test.go          # Scanner rule evaluation unit tests
 │   └── storage_test.go          # Storage backend unit tests
 ├── scripts/
