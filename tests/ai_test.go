@@ -60,6 +60,30 @@ Hope this helps!
 	}
 }
 
+func TestParseAndValidatePolicyYAML(t *testing.T) {
+	validYAML := `- id: POL-VALID-001
+  name: Valid Policy Rule
+  service: s3
+  severity: HIGH
+  description: Valid rule description
+`
+	rules, err := ai.ParseAndValidatePolicyYAML(validYAML)
+	if err != nil {
+		t.Fatalf("ParseAndValidatePolicyYAML failed on valid YAML: %v", err)
+	}
+	if len(rules) != 1 || rules[0].ID != "POL-VALID-001" {
+		t.Errorf("unexpected parsed rules: %+v", rules)
+	}
+
+	invalidSchemaYAML := `- name: Missing ID Field
+  service: s3
+`
+	_, err = ai.ParseAndValidatePolicyYAML(invalidSchemaYAML)
+	if err == nil {
+		t.Error("expected error when validating YAML missing required ID field")
+	}
+}
+
 func TestSavePolicyYAML(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "custom_policy.yaml")

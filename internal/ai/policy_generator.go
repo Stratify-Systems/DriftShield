@@ -12,6 +12,8 @@ import (
 	"github.com/SuryaTK2007/DriftShield/internal/policy"
 )
 
+const MaxPolicyRetries = 3
+
 // ConstructPolicyPrompt builds the system prompt enforcing the PolicyRule schema.
 func ConstructPolicyPrompt(requirements string) string {
 	return fmt.Sprintf(`You are a Cloud Security Architect designing declarative Policy-as-Code rules for DriftShield.
@@ -53,36 +55,61 @@ CRITICAL INSTRUCTIONS:
 `, requirements)
 }
 
-// GeneratePolicyRules calls Groq API, parses YAML, and validates generated rules.
+// GeneratePolicyRules calls Groq API with an automatic self-healing retry loop (max 3 attempts).
 func GeneratePolicyRules(ctx context.Context, requirements string) ([]policy.PolicyRule, string, error) {
-	prompt := ConstructPolicyPrompt(requirements)
-	rawResp, err := CallGroqAPI(ctx, prompt)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate policy rules from AI: %w", err)
+	basePrompt := ConstructPolicyPrompt(requirements)
+	currentPrompt := basePrompt
+	var lastErr error
+
+	for attempt := 1; attempt <= MaxPolicyRetries; attempt++ {
+		rawResp, err := CallGroqAPI(ctx, currentPrompt)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to call AI (attempt %d/%d): %w", attempt, MaxPolicyRetries, err)
+		}
+
+		yamlContent := ExtractYAMLBlock(rawResp)
+		if yamlContent == "" {
+			lastErr = fmt.Errorf("AI response did not contain a valid YAML code block")
+		} else {
+			rules, err := ParseAndValidatePolicyYAML(yamlContent)
+			if err == nil {
+				return rules, yamlContent, nil
+			}
+			lastErr = err
+		}
+
+		if attempt < MaxPolicyRetries {
+			fmt.Printf("\n[AI RETRY %d/%d] Generated YAML schema was invalid: %v\nFeeding error back to AI for self-correction...\n", attempt, MaxPolicyRetries, lastErr)
+			currentPrompt = fmt.Sprintf("%s\n\nPREVIOUS ATTEMPT FAILED WITH ERROR:\n%v\n\nPlease fix the error and return ONLY valid YAML following the exact PolicyRule schema.", basePrompt, lastErr)
+		}
 	}
 
-	yamlContent := ExtractYAMLBlock(rawResp)
-	if yamlContent == "" {
-		return nil, "", fmt.Errorf("AI response did not contain a valid YAML code block")
-	}
+	return nil, "", fmt.Errorf("AI policy generation failed after %d attempts: %w", MaxPolicyRetries, lastErr)
+}
 
+// ParseAndValidatePolicyYAML unmarshals and validates policy rules.
+func ParseAndValidatePolicyYAML(yamlContent string) ([]policy.PolicyRule, error) {
 	var rules []policy.PolicyRule
 	if err := yaml.Unmarshal([]byte(yamlContent), &rules); err != nil {
 		var single policy.PolicyRule
 		if sErr := yaml.Unmarshal([]byte(yamlContent), &single); sErr == nil && single.ID != "" {
 			rules = []policy.PolicyRule{single}
 		} else {
-			return nil, "", fmt.Errorf("failed to parse AI-generated YAML: %w", err)
+			return nil, fmt.Errorf("failed to parse YAML: %w", err)
 		}
+	}
+
+	if len(rules) == 0 {
+		return nil, fmt.Errorf("no rules found in YAML")
 	}
 
 	for i, r := range rules {
 		if err := policy.ValidateRule(r); err != nil {
-			return nil, "", fmt.Errorf("AI-generated rule #%d is invalid: %w", i+1, err)
+			return nil, fmt.Errorf("rule #%d is invalid: %w", i+1, err)
 		}
 	}
 
-	return rules, yamlContent, nil
+	return rules, nil
 }
 
 // ExtractYAMLBlock extracts yaml text from markdown fenced code blocks.
