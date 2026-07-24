@@ -1,0 +1,11 @@
+- id: POL-EC2-001
+  name: Prohibit Open SSH Access
+  service: ec2
+  severity: CRITICAL
+  description: Security groups must not allow inbound TCP port 22 from 0.0.0.0/0.
+  remediation: Restrict SSH ingress to specific bastion host or internal CIDR ranges.
+  conditions:
+    none_rule:
+      port: 22
+      protocol: tcp
+      source: 0.0.0.0/0

@@ -12,6 +12,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **CloudTrail Security Scanning**: Detects disabled logging, missing multi-region trails, and log validation issues
 - **VPC Security Scanning**: Detects default VPC usage, missing flow logs, open NACLs, and subnets with auto-assign public IP
 - **RDS Security Scanning**: Detects publicly accessible instances, unencrypted storage, missing deletion protection, and default master usernames
+- **Policy-as-Code Engine**: Evaluate live AWS resources against custom declarative YAML rules (`policies/*.yaml`)
 - **AI Baseline Designer**: Interactively generates secure-by-default baselines based on application context using Groq LLaMA 3
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
@@ -231,6 +232,14 @@ driftshield rds baseline          # Create RDS baseline
 driftshield rds drift             # Detect RDS configuration drift
 driftshield rds fix               # Fix drifted RDS configurations
 driftshield rds -r us-east-1      # Scan specific region
+```
+
+### Policy-as-Code Commands
+```bash
+driftshield policy scan           # Evaluate live AWS resources against YAML policy rules
+driftshield policy list           # List all loaded policy rules and their severities
+driftshield policy validate       # Validate YAML syntax of policy rules
+driftshield policy scan -p custom # Use custom rules directory
 ```
 
 ### AI Commands

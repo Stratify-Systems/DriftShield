@@ -1,0 +1,11 @@
+- id: POL-RDS-001
+  name: Enforce Database Storage Encryption
+  service: rds
+  severity: HIGH
+  description: All RDS database instances must have storage encryption enabled.
+  remediation: Enable storage encryption during RDS instance creation.
+  conditions:
+    all:
+      - field: storage_encrypted
+        operator: equals
+        value: true

@@ -76,6 +76,10 @@ DriftShield follows standard Go project layout principles, isolating logic into 
 * **Purpose:** Interactive configuration generation.
 * **Responsibilities:** Connects to the Groq API (LLaMA 3) to ask users contextual questions about their infrastructure and automatically synthesize secure JSON baselines.
 
+### `internal/policy/`
+* **Purpose:** Declarative Policy-as-Code engine.
+* **Responsibilities:** Loads custom YAML rule files, parses conditions, and evaluates live AWS account configurations against enterprise compliance policies.
+
 ### `tests/`
 * **Purpose:** Centralized unit testing suite.
 * **Responsibilities:** Contains isolated unit tests for `ai`, `alerts`, `baseline`, `config`, `display`, `scanner`, and `storage` packages without external network dependencies.
