@@ -27,6 +27,14 @@ func newS3Client(ctx context.Context) (*s3.Client, error) {
 
 // GetBucketConfig retrieves the full security configuration for a bucket.
 func GetBucketConfig(ctx context.Context, client *s3.Client, bucketName string) types.S3BucketConfig {
+	if client == nil {
+		var err error
+		client, err = newS3Client(ctx)
+		if err != nil {
+			return types.S3BucketConfig{BucketName: bucketName}
+		}
+	}
+
 	bc := types.S3BucketConfig{
 		BucketName:        bucketName,
 		PublicAccessBlock: nil,

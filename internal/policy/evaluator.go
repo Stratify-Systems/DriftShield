@@ -15,124 +15,182 @@ func EvaluatePolicyRules(ctx context.Context, rules []PolicyRule) (*PolicyEvalua
 		TotalRulesEvaluated: len(rules),
 	}
 
+	// Fetch snapshots once for performance and rate-limit prevention
+	var s3Configs map[string]types.S3BucketConfig
+	var ec2Details map[string]*types.SGDetails
+	var iamFindings []types.IAMFinding
+	var vpcSnapshots map[string]types.VPCSnapshot
+	var rdsSnapshots map[string]types.RDSInstanceSnapshot
+	var ctTrails []types.TrailSummary
+
+	// Lazy snapshot fetchers
+	getS3Configs := func() map[string]types.S3BucketConfig {
+		if s3Configs == nil {
+			s3Configs = make(map[string]types.S3BucketConfig)
+			s3Results, err := scanner.ScanAllBuckets(ctx)
+			if err == nil {
+				for _, bucketName := range append(s3Results.Secure, s3Results.AtRisk...) {
+					s3Configs[bucketName] = baseline.GetBucketConfig(ctx, nil, bucketName)
+				}
+			}
+		}
+		return s3Configs
+	}
+
+	getEC2Details := func() map[string]*types.SGDetails {
+		if ec2Details == nil {
+			ec2Results, err := scanner.ScanSecurityGroups(ctx)
+			if err == nil {
+				ec2Details = ec2Results.Details
+			}
+		}
+		return ec2Details
+	}
+
+	getIAMFindings := func() []types.IAMFinding {
+		if iamFindings == nil {
+			iamResults, err := scanner.ScanIAM(ctx)
+			if err == nil {
+				iamFindings = iamResults.Findings
+			}
+		}
+		return iamFindings
+	}
+
+	getVPCSnapshots := func() map[string]types.VPCSnapshot {
+		if vpcSnapshots == nil {
+			snaps, err := scanner.GetVPCSnapshot(ctx)
+			if err == nil {
+				vpcSnapshots = snaps
+			}
+		}
+		return vpcSnapshots
+	}
+
+	getRDSSnapshots := func() map[string]types.RDSInstanceSnapshot {
+		if rdsSnapshots == nil {
+			snaps, err := scanner.GetRDSSnapshot(ctx)
+			if err == nil {
+				rdsSnapshots = snaps
+			}
+		}
+		return rdsSnapshots
+	}
+
+	getCTTrails := func() []types.TrailSummary {
+		if ctTrails == nil {
+			ctResults, err := scanner.ScanCloudTrail(ctx)
+			if err == nil {
+				ctTrails = ctResults.Trails
+			}
+		}
+		return ctTrails
+	}
+
 	for _, rule := range rules {
 		rulePassed := true
 		var ruleFindings []PolicyFinding
 
 		switch rule.Service {
 		case "s3":
-			s3Results, err := scanner.ScanAllBuckets(ctx)
-			if err == nil {
-				// Get bucket configs for S3
-				for _, bucketName := range append(s3Results.Secure, s3Results.AtRisk...) {
-					cfg := baseline.GetBucketConfig(ctx, nil, bucketName)
-					if ok, msg := evalS3Rule(rule, cfg); !ok {
-						rulePassed = false
-						ruleFindings = append(ruleFindings, PolicyFinding{
-							RuleID:      rule.ID,
-							RuleName:    rule.Name,
-							Service:     rule.Service,
-							Severity:    rule.Severity,
-							Resource:    bucketName,
-							Message:     msg,
-							Remediation: rule.Remediation,
-						})
-					}
+			configs := getS3Configs()
+			for bucketName, cfg := range configs {
+				if ok, msg := evalS3Rule(rule, cfg); !ok {
+					rulePassed = false
+					ruleFindings = append(ruleFindings, PolicyFinding{
+						RuleID:      rule.ID,
+						RuleName:    rule.Name,
+						Service:     rule.Service,
+						Severity:    rule.Severity,
+						Resource:    bucketName,
+						Message:     msg,
+						Remediation: rule.Remediation,
+					})
 				}
 			}
 
 		case "ec2":
-			ec2Results, err := scanner.ScanSecurityGroups(ctx)
-			if err == nil {
-				for _, details := range ec2Results.Details {
-					if ok, msg := evalEC2Rule(rule, details.Config); !ok {
-						rulePassed = false
-						ruleFindings = append(ruleFindings, PolicyFinding{
-							RuleID:      rule.ID,
-							RuleName:    rule.Name,
-							Service:     rule.Service,
-							Severity:    rule.Severity,
-							Resource:    fmt.Sprintf("%s (%s)", details.Config.GroupName, details.Config.GroupID),
-							Message:     msg,
-							Remediation: rule.Remediation,
-						})
-					}
+			detailsMap := getEC2Details()
+			for _, details := range detailsMap {
+				if ok, msg := evalEC2Rule(rule, details.Config); !ok {
+					rulePassed = false
+					ruleFindings = append(ruleFindings, PolicyFinding{
+						RuleID:      rule.ID,
+						RuleName:    rule.Name,
+						Service:     rule.Service,
+						Severity:    rule.Severity,
+						Resource:    fmt.Sprintf("%s (%s)", details.Config.GroupName, details.Config.GroupID),
+						Message:     msg,
+						Remediation: rule.Remediation,
+					})
 				}
 			}
 
 		case "iam":
-			iamResults, err := scanner.ScanIAM(ctx)
-			if err == nil {
-				for _, f := range iamResults.Findings {
-					if f.Type == "USER_MFA_DISABLED" && rule.ID == "POL-IAM-001" {
-						rulePassed = false
-						ruleFindings = append(ruleFindings, PolicyFinding{
-							RuleID:      rule.ID,
-							RuleName:    rule.Name,
-							Service:     rule.Service,
-							Severity:    rule.Severity,
-							Resource:    f.Resource,
-							Message:     f.Message,
-							Remediation: rule.Remediation,
-						})
-					}
+			findings := getIAMFindings()
+			for _, f := range findings {
+				if f.Type == "USER_MFA_DISABLED" && rule.ID == "POL-IAM-001" {
+					rulePassed = false
+					ruleFindings = append(ruleFindings, PolicyFinding{
+						RuleID:      rule.ID,
+						RuleName:    rule.Name,
+						Service:     rule.Service,
+						Severity:    rule.Severity,
+						Resource:    f.Resource,
+						Message:     f.Message,
+						Remediation: rule.Remediation,
+					})
 				}
 			}
 
 		case "vpc":
-			vpcSnapshots, err := scanner.GetVPCSnapshot(ctx)
-			if err == nil {
-				for vpcID, snap := range vpcSnapshots {
-					if ok, msg := evalVPCRule(rule, snap); !ok {
-						rulePassed = false
-						ruleFindings = append(ruleFindings, PolicyFinding{
-							RuleID:      rule.ID,
-							RuleName:    rule.Name,
-							Service:     rule.Service,
-							Severity:    rule.Severity,
-							Resource:    vpcID,
-							Message:     msg,
-							Remediation: rule.Remediation,
-						})
-					}
+			snaps := getVPCSnapshots()
+			for vpcID, snap := range snaps {
+				if ok, msg := evalVPCRule(rule, snap); !ok {
+					rulePassed = false
+					ruleFindings = append(ruleFindings, PolicyFinding{
+						RuleID:      rule.ID,
+						RuleName:    rule.Name,
+						Service:     rule.Service,
+						Severity:    rule.Severity,
+						Resource:    vpcID,
+						Message:     msg,
+						Remediation: rule.Remediation,
+					})
 				}
 			}
 
 		case "rds":
-			rdsSnapshots, err := scanner.GetRDSSnapshot(ctx)
-			if err == nil {
-				for instanceID, snap := range rdsSnapshots {
-					if ok, msg := evalRDSRule(rule, snap); !ok {
-						rulePassed = false
-						ruleFindings = append(ruleFindings, PolicyFinding{
-							RuleID:      rule.ID,
-							RuleName:    rule.Name,
-							Service:     rule.Service,
-							Severity:    rule.Severity,
-							Resource:    instanceID,
-							Message:     msg,
-							Remediation: rule.Remediation,
-						})
-					}
+			snaps := getRDSSnapshots()
+			for instanceID, snap := range snaps {
+				if ok, msg := evalRDSRule(rule, snap); !ok {
+					rulePassed = false
+					ruleFindings = append(ruleFindings, PolicyFinding{
+						RuleID:      rule.ID,
+						RuleName:    rule.Name,
+						Service:     rule.Service,
+						Severity:    rule.Severity,
+						Resource:    instanceID,
+						Message:     msg,
+						Remediation: rule.Remediation,
+					})
 				}
 			}
 
 		case "cloudtrail":
-			ctResults, err := scanner.ScanCloudTrail(ctx)
-			if err == nil {
-				for _, trail := range ctResults.Trails {
-					if ok, msg := evalCloudTrailRule(rule, trail); !ok {
-						rulePassed = false
-						ruleFindings = append(ruleFindings, PolicyFinding{
-							RuleID:      rule.ID,
-							RuleName:    rule.Name,
-							Service:     rule.Service,
-							Severity:    rule.Severity,
-							Resource:    trail.Name,
-							Message:     msg,
-							Remediation: rule.Remediation,
-						})
-					}
+			trails := getCTTrails()
+			for _, trail := range trails {
+				if ok, msg := evalCloudTrailRule(rule, trail); !ok {
+					rulePassed = false
+					ruleFindings = append(ruleFindings, PolicyFinding{
+						RuleID:      rule.ID,
+						RuleName:    rule.Name,
+						Service:     rule.Service,
+						Severity:    rule.Severity,
+						Resource:    trail.Name,
+						Message:     msg,
+						Remediation: rule.Remediation,
+					})
 				}
 			}
 		}
@@ -177,8 +235,19 @@ func evalS3Rule(rule PolicyRule, cfg types.S3BucketConfig) (bool, string) {
 				return false, fmt.Sprintf("Versioning is %s (expected %v)", cfg.Versioning, c.Value)
 			}
 		case "encryption":
-			if cfg.Encryption != fmt.Sprintf("%v", c.Value) {
-				return false, fmt.Sprintf("Encryption is %s (expected %v)", cfg.Encryption, c.Value)
+			isEncrypted := (cfg.Encryption != "" && cfg.Encryption != "None")
+			if targetBool, ok := c.Value.(bool); ok {
+				if !checkBool(isEncrypted, c.Operator, targetBool) {
+					return false, fmt.Sprintf("Encryption is %s (expected enabled = %v)", cfg.Encryption, targetBool)
+				}
+			} else if targetStr, isStr := c.Value.(string); isStr {
+				if targetStr == "true" || targetStr == "false" {
+					if !checkBool(isEncrypted, c.Operator, targetStr == "true") {
+						return false, fmt.Sprintf("Encryption is %s (expected enabled = %s)", cfg.Encryption, targetStr)
+					}
+				} else if cfg.Encryption != targetStr {
+					return false, fmt.Sprintf("Encryption is %s (expected %s)", cfg.Encryption, targetStr)
+				}
 			}
 		}
 	}

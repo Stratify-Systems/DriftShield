@@ -1,0 +1,74 @@
+- id: "POL-S3-001"
+  name: "Block Public S3 Buckets"
+  service: "s3"
+  severity: "CRITICAL"
+  description: "All S3 buckets must have public access blocked to prevent unauthorized access"
+  remediation: "Enable public access block on the S3 bucket"
+  conditions:
+    all:
+      - field: "public_access_block.BlockPublicAcls"
+        operator: "equals"
+        value: true
+      - field: "public_access_block.BlockPublicPolicy"
+        operator: "equals"
+        value: true
+
+- id: "POL-S3-002"
+  name: "Enforce S3 Encryption"
+  service: "s3"
+  severity: "HIGH"
+  description: "All S3 buckets must have encryption enabled to protect data at rest"
+  remediation: "Enable default encryption on the S3 bucket"
+  conditions:
+    all:
+      - field: "encryption"
+        operator: "is_true"
+        value: true
+
+- id: "POL-EC2-001"
+  name: "Prohibit Open SSH Access"
+  service: "ec2"
+  severity: "CRITICAL"
+  description: "Security groups must not allow inbound TCP port 22 from 0.0.0.0/0"
+  remediation: "Restrict SSH ingress to bastion CIDR ranges"
+  conditions:
+    none_rule:
+      port: 22
+      protocol: "tcp"
+      source: "0.0.0.0/0"
+
+- id: "POL-VPC-001"
+  name: "Enforce VPC Flow Logs"
+  service: "vpc"
+  severity: "HIGH"
+  description: "All VPCs must have flow logs enabled to monitor network traffic"
+  remediation: "Enable VPC flow logs on the VPC"
+  conditions:
+    all:
+      - field: "flow_logs_enabled"
+        operator: "is_true"
+        value: true
+
+- id: "POL-RDS-001"
+  name: "Require Storage Encryption on RDS"
+  service: "rds"
+  severity: "HIGH"
+  description: "All RDS databases must have storage encryption enabled to protect data at rest"
+  remediation: "Enable storage encryption on the RDS database"
+  conditions:
+    all:
+      - field: "storage_encrypted"
+        operator: "equals"
+        value: true
+
+- id: "POL-CT-001"
+  name: "Require Active CloudTrail Logging"
+  service: "cloudtrail"
+  severity: "HIGH"
+  description: "CloudTrail logging must be enabled to monitor API calls"
+  remediation: "Enable CloudTrail logging"
+  conditions:
+    all:
+      - field: "is_logging"
+        operator: "is_true"
+        value: true

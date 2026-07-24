@@ -25,7 +25,7 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 | `internal/config` | Static configuration (region, SES, Slack, baseline paths) |
 | `internal/scanner` | Live AWS scanning for S3, EC2, IAM, CloudTrail, VPC, and RDS risks |
 | `internal/baseline` | Snapshot, compare, and remediate configuration drift |
-| `internal/ai` | Generate secure-by-default JSON baselines interactively via Groq LLaMA 3 |
+| `internal/ai` | Generate custom YAML compliance policies interactively via Groq LLaMA 3 |
 | `internal/alerts` | Send findings via AWS SES email, SNS, and Slack webhook |
 | `internal/display` | Banner printing and port description helpers |
 | `internal/policy` | Declarative Policy-as-Code engine for custom YAML rule evaluation |

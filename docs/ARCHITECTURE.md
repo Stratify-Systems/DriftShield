@@ -73,8 +73,8 @@ DriftShield follows standard Go project layout principles, isolating logic into 
 * **Responsibilities:** Formats and routes vulnerability findings and drift reports to configured sinks (Slack, AWS SES, AWS SNS).
 
 ### `internal/ai/`
-* **Purpose:** Interactive configuration generation.
-* **Responsibilities:** Connects to the Groq API (LLaMA 3) to ask users contextual questions about their infrastructure and automatically synthesize secure JSON baselines.
+* **Purpose:** AI Policy Rule Generation.
+* **Responsibilities:** Connects to the Groq API (LLaMA 3) to convert natural language security guidelines into validated, declarative YAML compliance rules for user review.
 
 ### `internal/policy/`
 * **Purpose:** Declarative Policy-as-Code engine.

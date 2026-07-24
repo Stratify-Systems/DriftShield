@@ -139,15 +139,15 @@ func init() {
 	// AI command
 	aiCmd := &cobra.Command{
 		Use:   "ai",
-		Short: "AI-powered utilities",
+		Short: "AI-powered policy utilities",
 	}
 	aiCmd.AddCommand(
 		&cobra.Command{
-			Use:   "baseline",
-			Short: "Generate secure baselines interactively using AI",
+			Use:   "policy",
+			Short: "Generate custom YAML policy rules from security requirements using AI",
 			Run: func(cmd *cobra.Command, args []string) {
 				ctx := context.Background()
-				if err := ai.RunDesigner(ctx); err != nil {
+				if err := ai.RunPolicyDesigner(ctx); err != nil {
 					fmt.Printf("\n[ERROR] %v\n", err)
 				}
 			},
