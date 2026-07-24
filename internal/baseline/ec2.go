@@ -241,7 +241,7 @@ func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift, dryRun bool
 						Type:          "REVOKED_DRIFT_RULE",
 					})
 				} else {
-					perm := buildIpPermission(r)
+					perm := BuildIpPermission(r)
 					_, err := client.RevokeSecurityGroupIngress(ctx, &ec2.RevokeSecurityGroupIngressInput{
 						GroupId:       aws.String(d.SecurityGroup),
 						IpPermissions: []ec2types.IpPermission{perm},
@@ -276,7 +276,7 @@ func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift, dryRun bool
 						Type:          "RESTORED_BASELINE_RULE",
 					})
 				} else {
-					perm := buildIpPermission(r)
+					perm := BuildIpPermission(r)
 					_, err := client.AuthorizeSecurityGroupIngress(ctx, &ec2.AuthorizeSecurityGroupIngressInput{
 						GroupId:       aws.String(d.SecurityGroup),
 						IpPermissions: []ec2types.IpPermission{perm},
@@ -305,7 +305,7 @@ func RemediateEC2Drift(ctx context.Context, drifts []types.EC2Drift, dryRun bool
 	return res, nil
 }
 
-func buildIpPermission(rule types.InboundRule) ec2types.IpPermission {
+func BuildIpPermission(rule types.InboundRule) ec2types.IpPermission {
 	perm := ec2types.IpPermission{
 		IpProtocol: aws.String(rule.Protocol),
 		FromPort:   aws.Int32(rule.FromPort),

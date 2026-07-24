@@ -44,4 +44,3 @@ reports/*.pdf
 # Environment
 .env
 .envrc
-\n# Environment Variables\n.env\n

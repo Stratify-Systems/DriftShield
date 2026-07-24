@@ -3,16 +3,17 @@ package baseline
 import (
 	"context"
 	"encoding/json"
-	"strings"
+	"errors"
 
 	"github.com/SuryaTK2007/DriftShield/internal/storage"
 )
 
 // LoadBaseline loads a JSON baseline from the specified path via storage.
+// Returns (nil, nil) if the baseline does not exist yet.
 func LoadBaseline[T any](path string) (*T, error) {
 	data, err := storage.LoadBaseline(context.Background(), path)
 	if err != nil {
-		if strings.Contains(err.Error(), "baseline not found locally") || strings.Contains(err.Error(), "NoSuchKey") || strings.Contains(err.Error(), "NotFound") {
+		if errors.Is(err, storage.ErrBaselineNotFound) {
 			return nil, nil
 		}
 		return nil, err
