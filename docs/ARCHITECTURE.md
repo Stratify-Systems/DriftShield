@@ -17,16 +17,19 @@ graph TD
         CLI --> Baseline["internal/baseline"]
         CLI --> Scanner["internal/scanner"]
         CLI --> AI["internal/ai"]
+        CLI --> Policy["internal/policy"]
     end
 
     subgraph AWS Integration
         Scanner --> SDK["AWS SDK for Go v2"]
         Baseline --> SDK
+        Policy --> Scanner
     end
 
     subgraph Persistence Layer
         Baseline <--> Storage["internal/storage"]
         Storage <--> S3Backend[("AWS S3 Remote State")]
+        Policy <--> PolicyFiles[("policies/*.yaml Rules")]
     end
 
     subgraph Notification Layer
@@ -39,6 +42,7 @@ graph TD
 
     subgraph AI Layer
         AI <--> Groq["Groq API / LLaMA 3"]
+        AI --> PolicyFiles
     end
 ```
 
@@ -51,7 +55,7 @@ DriftShield follows standard Go project layout principles, isolating logic into 
 ### `cmd/driftshield/`
 * **Purpose:** The entry point of the application.
 * **Component:** Implements the `spf13/cobra` CLI framework.
-* **Responsibilities:** Defines flags (e.g., `--region`, `--dry-run`), parses arguments, initializes context, handles early exits (`os.Exit(1)`), and routes commands to the appropriate internal packages.
+* **Responsibilities:** Defines flags (e.g., `--region`, `--dry-run`, `--rules-dir`), parses arguments, initializes context, handles early exits (`os.Exit(1)`), and routes commands to the appropriate internal packages.
 
 ### `internal/scanner/`
 * **Purpose:** The AWS ingestion layer.
@@ -73,12 +77,16 @@ DriftShield follows standard Go project layout principles, isolating logic into 
 * **Responsibilities:** Formats and routes vulnerability findings and drift reports to configured sinks (Slack, AWS SES, AWS SNS).
 
 ### `internal/ai/`
-* **Purpose:** Interactive configuration generation.
-* **Responsibilities:** Connects to the Groq API (LLaMA 3) to ask users contextual questions about their infrastructure and automatically synthesize secure JSON baselines.
+* **Purpose:** AI Policy Rule Generation.
+* **Responsibilities:** Connects to the Groq API (LLaMA 3) to convert natural language security guidelines into validated, declarative YAML compliance rules for user review.
+
+### `internal/policy/`
+* **Purpose:** Declarative Policy-as-Code engine.
+* **Responsibilities:** Loads custom YAML rule files (`policies/*.yaml`), parses conditions, and evaluates live AWS account configurations against enterprise compliance policies.
 
 ### `tests/`
 * **Purpose:** Centralized unit testing suite.
-* **Responsibilities:** Contains isolated unit tests for `ai`, `alerts`, `baseline`, `config`, `display`, `scanner`, and `storage` packages without external network dependencies.
+* **Responsibilities:** Contains isolated unit tests for `ai`, `alerts`, `baseline`, `config`, `display`, `policy`, `scanner`, and `storage` packages without external network dependencies.
 
 ---
 
@@ -91,6 +99,20 @@ DriftShield follows standard Go project layout principles, isolating logic into 
 4. **Compare:** `baseline.CompareS3WithBaseline()` performs a deep diff between the live state and the remote state.
 5. **Alert:** If drifts are found, `alerts.SendS3DriftAlerts()` fires notifications to Slack/SES.
 6. **Fail-Fast:** The CLI global `exitWithFailure` is set to `true`, eventually causing `os.Exit(1)`.
+
+### The `policy scan` Flow
+1. **Initialize:** `cmd` invokes `runPolicyScan()`.
+2. **Load Rules:** `policy.LoadRulesFromDir("policies")` reads and validates all `.yaml` policy rules in the rules directory.
+3. **Fetch Resource Snapshots:** `policy.EvaluatePolicyRules()` queries live AWS configurations via `scanner`.
+4. **Evaluate Conditions:** Diffs live resource properties against rule condition trees (`all`, `any`, `none`, `none_rule`).
+5. **Report & Exit:** Prints policy evaluation summary box; sets `exitWithFailure = true` if violations exist.
+
+### The `ai policy` Flow
+1. **Prompt User:** `ai.RunPolicyDesigner()` collects compliance framework and security guidelines in natural language.
+2. **LLM Generation:** `ai.GeneratePolicyRules()` sends structured prompt to Groq LLaMA 3.
+3. **Validate:** `policy.ValidateRule()` parses and validates the generated YAML against `PolicyRule` schema.
+4. **User Review:** Displays proposed rules in terminal; asks for user approval (`survey.Confirm`).
+5. **Persist:** Saves validated rules to `policies/custom_policy.yaml`.
 
 ### The `fix --dry-run` Flow
 1. **Identify Drifts:** Identical to the `drift` flow.

@@ -12,6 +12,7 @@ Built in Go for fast, single-binary distribution with zero runtime dependencies.
 - **CloudTrail Security Scanning**: Detects disabled logging, missing multi-region trails, and log validation issues
 - **VPC Security Scanning**: Detects default VPC usage, missing flow logs, open NACLs, and subnets with auto-assign public IP
 - **RDS Security Scanning**: Detects publicly accessible instances, unencrypted storage, missing deletion protection, and default master usernames
+- **Policy-as-Code Engine**: Evaluate live AWS resources against custom declarative YAML rules (`policies/*.yaml`)
 - **AI Baseline Designer**: Interactively generates secure-by-default baselines based on application context using Groq LLaMA 3
 - **Drift Detection**: Monitors configuration changes against a known-good baseline
 - **Auto-Remediation**: Automatically fixes drifted configs back to baseline
@@ -49,9 +50,12 @@ DriftShield/
 │   │   └── rds.go               # RDS baseline management
 │   ├── ai/
 │   │   ├── client.go            # Groq API client
-│   │   ├── conversation.go      # Interactive CLI prompts
-│   │   ├── generator.go         # Baseline generation logic
-│   │   └── prompt.go            # LLM prompt construction
+│   │   ├── conversation.go      # Interactive AI Policy CLI prompts
+│   │   └── policy_generator.go  # AI policy rule generator
+│   ├── policy/
+│   │   ├── evaluator.go         # Condition evaluation engine
+│   │   ├── loader.go            # YAML policy parser & defaults
+│   │   └── schema.go            # PolicyRule schema definitions
 │   ├── storage/
 │   │   └── state.go             # S3 / local state backend
 │   └── alerts/
@@ -65,12 +69,21 @@ DriftShield/
 │   ├── cloudtrail_baseline.json # CloudTrail baseline snapshot
 │   ├── vpc_baseline.json        # VPC baseline snapshot
 │   └── rds_baseline.json        # RDS baseline snapshot
+├── policies/                    # Policy-as-Code YAML rules
+│   ├── s3_policies.yaml
+│   ├── ec2_policies.yaml
+│   ├── iam_policies.yaml
+│   ├── rds_policies.yaml
+│   ├── vpc_policies.yaml
+│   ├── cloudtrail_policies.yaml
+│   └── custom_policy.yaml
 ├── tests/                       # Unit test suite
 │   ├── ai_test.go               # AI generator & schema unit tests
 │   ├── alerts_test.go           # Alert dispatching unit tests
 │   ├── baseline_test.go         # Baseline comparison & remediation unit tests
 │   ├── config_test.go           # Configuration & environment unit tests
 │   ├── display_test.go          # Display formatting unit tests
+│   ├── policy_test.go           # Policy evaluation unit tests
 │   ├── scanner_test.go          # Scanner rule evaluation unit tests
 │   └── storage_test.go          # Storage backend unit tests
 ├── scripts/
@@ -233,9 +246,17 @@ driftshield rds fix               # Fix drifted RDS configurations
 driftshield rds -r us-east-1      # Scan specific region
 ```
 
+### Policy-as-Code Commands
+```bash
+driftshield policy scan           # Evaluate live AWS resources against YAML policy rules
+driftshield policy list           # List all loaded policy rules and their severities
+driftshield policy validate       # Validate YAML syntax of policy rules
+driftshield policy scan -p custom # Use custom rules directory
+```
+
 ### AI Commands
 ```bash
-driftshield ai baseline           # Generate secure baseline interactively using AI
+driftshield ai policy             # Generate custom YAML policy rules from security requirements using AI
 ```
 
 ### Other Commands
@@ -280,20 +301,18 @@ driftshield rds drift --region ap-southeast-1
 driftshield ec2 fix -r us-west-2
 ```
 
-## AI Baseline Designer
+## AI Policy Generator
 
-The `driftshield ai baseline` command launches an interactive session to generate a security baseline tailored to your application's context (e.g. REST API, Static Website). 
+The `driftshield ai policy` command launches an interactive session to generate declarative YAML compliance policy rules tailored to your organization's security guidelines (e.g. SOC2, HIPAA, PCI-DSS).
 
-Instead of creating a baseline from your *current* AWS state (which might already be insecure), the AI acts as a virtual Cloud Security Architect and generates a **secure-by-default** JSON baseline enforcing best practices for your specific use case. It uses the Groq API (LLaMA 3) under the hood.
-
-Before generating the baseline, DriftShield seamlessly scans your live AWS environment (all 6 services) and feeds the exact names of your existing S3 buckets, EC2 Security Groups, IAM Users, CloudTrails, VPCs, and RDS instances to the AI. This ensures the AI perfectly tailors the secure configurations to your actual infrastructure rather than hallucinating random resource names.
+Instead of manually writing YAML rules, the AI acts as a virtual Cloud Security Architect and generates syntactically valid `PolicyRule` objects enforcing your compliance requirements. It uses the Groq API (LLaMA 3) under the hood.
 
 1. Ensure `GROQ_API_KEY` is set in your `.env` file or environment.
-2. Run `driftshield ai baseline`.
-3. Answer the interactive prompts.
-4. Review the AI's recommendations.
-5. Approve to generate and save the `ai-baselines/*.json` files.
-6. Once reviewed, move them to `baselines/` to begin enforcing them with `driftshield all drift`.
+2. Run `driftshield ai policy`.
+3. Select your compliance framework and describe any custom security requirements.
+4. Review the AI's generated policy rules in the terminal.
+5. Approve to save the generated `policies/custom_policy.yaml` file.
+6. Evaluate your AWS infrastructure against the generated rules using `driftshield policy scan`.
 
 ## IAM Security Checks
 

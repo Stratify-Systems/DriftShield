@@ -73,14 +73,16 @@ jobs:
         run: |
           go test -v ./...
 
-      - name: Run DriftShield Drift Detection
+      - name: Run DriftShield Compliance & Drift Detection
         env:
           DRIFTSHIELD_STATE_BUCKET: my-security-state-bucket
           DRIFTSHIELD_STATE_BUCKET_REGION: ap-south-1
           DRIFTSHIELD_SLACK_ENABLED: true
           DRIFTSHIELD_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          # If drift is detected, this will exit with 1 and fail the GitHub Action
+          # Evaluate live infrastructure against custom enterprise YAML policy rules
+          ./driftshield policy scan
+          # Detect baseline drift against state bucket
           ./driftshield all drift
 ```
 
@@ -110,6 +112,8 @@ driftshield_scan:
   script:
     - echo "Running full infrastructure scan..."
     - ./driftshield all scan
+    - echo "Evaluating policy rules..."
+    - ./driftshield policy scan
     - echo "Checking for baseline drifts..."
     - ./driftshield all drift
 ```

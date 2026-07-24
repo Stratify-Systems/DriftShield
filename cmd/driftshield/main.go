@@ -17,6 +17,7 @@ import (
 	"github.com/SuryaTK2007/DriftShield/internal/baseline"
 	"github.com/SuryaTK2007/DriftShield/internal/config"
 	"github.com/SuryaTK2007/DriftShield/internal/display"
+	"github.com/SuryaTK2007/DriftShield/internal/policy"
 	"github.com/SuryaTK2007/DriftShield/internal/scanner"
 	"github.com/SuryaTK2007/DriftShield/internal/types"
 )
@@ -44,10 +45,12 @@ misconfigurations and monitors configuration drift against a secure baseline.`,
 
 var dryRun bool
 var exitWithFailure bool
+var rulesDir string
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&config.CurrentRegion, "region", "r", "", "AWS region (e.g., us-east-1)")
 	rootCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "d", false, "Simulate the fix without making any changes to AWS")
+	rootCmd.PersistentFlags().StringVarP(&rulesDir, "rules-dir", "p", "policies", "Directory containing custom YAML policy rules")
 
 	// S3 commands
 	s3Cmd := &cobra.Command{
@@ -136,22 +139,46 @@ func init() {
 	// AI command
 	aiCmd := &cobra.Command{
 		Use:   "ai",
-		Short: "AI-powered utilities",
+		Short: "AI-powered policy utilities",
 	}
 	aiCmd.AddCommand(
 		&cobra.Command{
-			Use:   "baseline",
-			Short: "Generate secure baselines interactively using AI",
+			Use:   "policy",
+			Short: "Generate custom YAML policy rules from security requirements using AI",
 			Run: func(cmd *cobra.Command, args []string) {
 				ctx := context.Background()
-				if err := ai.RunDesigner(ctx); err != nil {
+				if err := ai.RunPolicyDesigner(ctx); err != nil {
 					fmt.Printf("\n[ERROR] %v\n", err)
 				}
 			},
 		},
 	)
 
-	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, rdsCmd, vpcCmd, allCmd, aiCmd)
+	// Policy command
+	policyCmd := &cobra.Command{
+		Use:   "policy",
+		Short: "Policy-as-Code engine for evaluating custom enterprise YAML rules",
+		Run:   func(cmd *cobra.Command, args []string) { runPolicyScan() },
+	}
+	policyCmd.AddCommand(
+		&cobra.Command{
+			Use:   "scan",
+			Short: "Evaluate live AWS account resources against loaded YAML policy rules",
+			Run:   func(cmd *cobra.Command, args []string) { runPolicyScan() },
+		},
+		&cobra.Command{
+			Use:   "list",
+			Short: "List all loaded policy rules and their severities",
+			Run:   func(cmd *cobra.Command, args []string) { runPolicyList() },
+		},
+		&cobra.Command{
+			Use:   "validate",
+			Short: "Validate YAML syntax of policy rules in the rules directory",
+			Run:   func(cmd *cobra.Command, args []string) { runPolicyValidate() },
+		},
+	)
+
+	rootCmd.AddCommand(s3Cmd, ec2Cmd, iamCmd, cloudtrailCmd, rdsCmd, vpcCmd, allCmd, aiCmd, policyCmd)
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -1136,3 +1163,72 @@ func printBox(title string, lines []string) {
 	}
 	fmt.Println("+" + strings.Repeat("-", 58) + "+")
 }
+
+// ──────────────────────────────────────────────────────────────
+// Policy handlers
+// ──────────────────────────────────────────────────────────────
+
+func runPolicyValidate() {
+	display.PrintBanner("POLICY VALIDATION")
+	rules, err := policy.LoadRulesFromDir(rulesDir)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		exitWithFailure = true
+		return
+	}
+	fmt.Printf(display.OK()+"Successfully loaded and validated %d policy rule(s) from %s/\n", len(rules), rulesDir)
+}
+
+func runPolicyList() {
+	display.PrintBanner("LOADED POLICY RULES")
+	rules, err := policy.LoadRulesFromDir(rulesDir)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	fmt.Printf("Source: %s/\n\n", rulesDir)
+	for _, r := range rules {
+		fmt.Printf("  - [%s] %s (%s, service: %s)\n    %s\n\n", r.Severity, r.ID, r.Name, r.Service, r.Description)
+	}
+}
+
+func runPolicyScan() {
+	ctx := context.Background()
+	display.PrintBanner("POLICY EVALUATION")
+	rules, err := policy.LoadRulesFromDir(rulesDir)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+	fmt.Printf("Loaded %d policy rule(s) from %s/\n", len(rules), rulesDir)
+	fmt.Println("Evaluating live AWS resources against custom rules...")
+
+	res, err := policy.EvaluatePolicyRules(ctx, rules)
+	if err != nil {
+		fmt.Printf("[ERROR] %v\n", err)
+		return
+	}
+
+	if len(res.Findings) > 0 {
+		fmt.Println("\n[!] POLICY VIOLATIONS DETECTED:")
+		for _, f := range res.Findings {
+			fmt.Printf("\n  [FAIL] [%s] %s — Resource: %s\n", f.RuleID, f.RuleName, f.Resource)
+			fmt.Printf("         Severity:    %s\n", f.Severity)
+			fmt.Printf("         Issue:       %s\n", f.Message)
+			if f.Remediation != "" {
+				fmt.Printf("         Remediation: %s\n", f.Remediation)
+			}
+		}
+		exitWithFailure = true
+	} else {
+		fmt.Println("\n[+] All resources comply with loaded policy rules!")
+	}
+
+	printBox("POLICY EVALUATION SUMMARY", []string{
+		fmt.Sprintf("Total Rules Evaluated: %d", res.TotalRulesEvaluated),
+		fmt.Sprintf("Passing Rules:         %d", res.PassingRules),
+		fmt.Sprintf("Failing Rules:         %d", res.FailingRules),
+		fmt.Sprintf("Policy Violations:     %d", len(res.Findings)),
+	})
+}
+
