@@ -1,110 +1,59 @@
 - id: "POL-S3-001"
-  name: "Block Public Access to S3 Buckets"
+  name: "Default Server-Side Encryption"
   service: "s3"
-  severity: "CRITICAL"
-  description: "All S3 buckets must strictly block public access"
-  remediation: "Enable public access block configuration for the S3 bucket"
+  severity: "HIGH"
+  description: "All S3 storage must have default server-side encryption enabled to protect electronic health records."
+  remediation: "Enable default server-side encryption for the S3 bucket."
   conditions:
     all:
-      - field: "public_access_block.BlockPublicAcls"
-        operator: "equals"
-        value: true
-      - field: "public_access_block.BlockPublicPolicy"
-        operator: "equals"
+      - field: "storage_encrypted"
+        operator: "is_true"
         value: true
 
-- id: "POL-S3-002"
-  name: "Enable Default Encryption for S3 Buckets"
-  service: "s3"
+- id: "POL-RDS-001"
+  name: "Disallow Public RDS Instances"
+  service: "rds"
   severity: "CRITICAL"
-  description: "All S3 buckets must have default encryption enabled"
-  remediation: "Enable default encryption for the S3 bucket"
+  description: "RDS database instances must not be publicly accessible to prevent unauthorized access to electronic health records."
+  remediation: "Modify the RDS instance to be privately accessible."
   conditions:
     all:
-      - field: "encryption"
-        operator: "equals"
+      - field: "publicly_accessible"
+        operator: "is_false"
         value: true
-
-- id: "POL-EC2-001"
-  name: "Prohibit Open SSH Access"
-  service: "ec2"
-  severity: "CRITICAL"
-  description: "Security groups must not allow inbound TCP port 22 from 0.0.0.0/0"
-  remediation: "Restrict SSH ingress to bastion CIDR ranges"
-  conditions:
-    none_rule:
-      port: 22
-      protocol: "tcp"
-      source: "0.0.0.0/0"
-
-- id: "POL-EC2-002"
-  name: "Prohibit Open Database Access"
-  service: "ec2"
-  severity: "CRITICAL"
-  description: "Security groups must not allow inbound database ports from 0.0.0.0/0"
-  remediation: "Restrict database ingress to trusted CIDR ranges"
-  conditions:
-    none_rule:
-      port: 5432
-      protocol: "tcp"
-      source: "0.0.0.0/0"
 
 - id: "POL-IAM-001"
   name: "Enforce MFA for IAM Users"
   service: "iam"
   severity: "HIGH"
-  description: "All IAM users with console access must have MFA enabled"
-  remediation: "Enable MFA for the IAM user"
+  description: "All console IAM users must have MFA enabled to add an extra layer of security for accessing electronic health records."
+  remediation: "Enable MFA for the IAM user."
   conditions:
     all:
       - field: "mfa_enabled"
-        operator: "equals"
+        operator: "is_true"
         value: true
 
 - id: "POL-VPC-001"
   name: "Enable VPC Flow Logs"
   service: "vpc"
-  severity: "HIGH"
-  description: "VPC Flow Logs must be enabled across all VPCs"
-  remediation: "Enable VPC Flow Logs for the VPC"
+  severity: "MEDIUM"
+  description: "VPC Flow Logs must be enabled to monitor network traffic and detect potential security threats."
+  remediation: "Enable VPC Flow Logs for the VPC."
   conditions:
     all:
       - field: "flow_logs_enabled"
-        operator: "equals"
-        value: true
-
-- id: "POL-RDS-001"
-  name: "Enable Storage Encryption for RDS Instances"
-  service: "rds"
-  severity: "HIGH"
-  description: "All RDS instances must have storage encryption enabled"
-  remediation: "Enable storage encryption for the RDS instance"
-  conditions:
-    all:
-      - field: "storage_encrypted"
-        operator: "equals"
-        value: true
-
-- id: "POL-RDS-002"
-  name: "Enable Deletion Protection for RDS Instances"
-  service: "rds"
-  severity: "HIGH"
-  description: "All RDS instances must have deletion protection enabled"
-  remediation: "Enable deletion protection for the RDS instance"
-  conditions:
-    all:
-      - field: "deletion_protection"
-        operator: "equals"
+        operator: "is_true"
         value: true
 
 - id: "POL-CT-001"
   name: "Enable CloudTrail Logging"
   service: "cloudtrail"
   severity: "CRITICAL"
-  description: "CloudTrail logging must be enabled"
-  remediation: "Enable CloudTrail logging"
+  description: "CloudTrail logging must be enabled across all regions to track API calls and detect security incidents."
+  remediation: "Enable CloudTrail logging for all regions."
   conditions:
     all:
       - field: "is_logging"
-        operator: "equals"
+        operator: "is_true"
         value: true
