@@ -2,7 +2,7 @@
 
 ## Overview
 
-DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **Fetch.ai `uAgents` framework**. The multi-agent system decouples cloud telemetry collection, compliance evaluation, anti-tampering drift detection, AI reasoning, safety auditing, and notification routing into specialized, peer-to-peer communicating agents.
+DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **Fetch.ai `uAgents` framework**. The multi-agent system decouples cloud telemetry collection, compliance evaluation, anti-tampering drift detection, Groq LLaMA 3 AI reasoning, safety auditing, and notification routing into specialized, peer-to-peer communicating agents.
 
 ---
 
@@ -10,10 +10,10 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ```text
                1. 🕵️‍♂️ ScannerAgent (Port 8001)
-               Scans AWS Telemetry ONCE
+            [Runs ./driftshield all every 5 mins]
                            │
              ┌─────────────┴─────────────┐
-             │ (Broadcast Telemetry)     │
+             │ (Broadcasts Telemetry)    │
              ▼                           ▼
  2. 🛡️ PolicyGuardAgent (Port 8002)   3. 🔍 DriftSentinelAgent (Port 8003)
  Runs ./driftshield policy scan       Runs ./driftshield all drift
@@ -42,10 +42,10 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 | Agent Name | Address / Seed | Port | Primary Responsibility |
 | :--- | :--- | :--- | :--- |
-| **🕵️‍♂️ ScannerAgent** | `agent1q2j3sxjx9zd0fl...` | `8001` | Periodically executes `./driftshield all` to capture live AWS state (S3, EC2, IAM, CloudTrail, VPC, RDS) and broadcasts `CloudStateTelemetry` to Agent 2 and Agent 3. |
+| **🕵️‍♂️ ScannerAgent** | `agent1q2j3sxjx9zd0fl...` | `8001` | Periodically executes `./driftshield all` (interval: 300s / 5 mins) to capture live AWS state and broadcasts `CloudStateTelemetry` to Agent 2 and Agent 3. |
 | **🛡️ PolicyGuardAgent** | `agent1qvs9er6w78u606...` | `8002` | Listens for `CloudStateTelemetry`, evaluates rules in `policies/*.yaml` via `./driftshield policy scan`, and emits `PolicyViolationAlert` if non-compliant. |
 | **🔍 DriftSentinelAgent** | `agent1qtp3c0576aqfqn...` | `8003` | Listens for `CloudStateTelemetry`, compares live state against S3 Remote State baselines via `./driftshield all drift`, and emits `DriftDetectedAlert` on anti-tampering detection. |
-| **🧠 ArchitectAIAgent** | `agent1qghyly2etc8y4x...` | `8004` | Ingests `PolicyViolationAlert`, invokes Groq LLaMA 3 engine to synthesize a **Step-by-Step Human Remediation Guide**, and transmits `RemediationProposal`. |
+| **🧠 ArchitectAIAgent** | `agent1qghyly2etc8y4x...` | `8004` | Dynamically parses live AWS violations or invokes Groq LLaMA 3 (`llama-3.3-70b-versatile`) to synthesize a **Step-by-Step Human Remediation Guide** and transmits `RemediationProposal`. |
 | **⚡ AutoFixAgent** | `agent1qt043wu6g049vl...` | `8005` | Evaluates proposal risk ($\ge 80\%$ confidence threshold), executes safe `./driftshield all fix --dry-run` simulations ONLY (0 live AWS mutations), and signs `RemediationProof`. |
 | **📢 AlertRouterAgent** | `agent1qw9lyclq7dap8a...` | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS). |
 
@@ -69,9 +69,13 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ---
 
-## State Persistence & Cleanliness
+## State Persistence & Dual-Format Reporting
 
-Agent memory states are isolated in the `agents_data/` directory (`agents_data/agent1q*.json`) and automatically ignored in `.gitignore` to maintain clean source control.
+Agent states are persisted inside the **`agents_data/`** directory in dual formats:
+- **Clean JSON Datastores:** `agents_data/scanner_agent.json`, `agents_data/policy_guard_agent.json`, `agents_data/architect_ai_agent.json`, etc.
+- **Human-Readable Markdown Reports:** `agents_data/architect_ai_agent_report.md`, `agents_data/autofix_agent_report.md`, etc., rendering beautiful Markdown summaries with headers, code blocks, and step-by-step lists.
+
+All `agents_data/` contents and `__pycache__` directories are excluded from source control via [.gitignore](file:///home/suryatk/DriftShield/.gitignore).
 
 ---
 
