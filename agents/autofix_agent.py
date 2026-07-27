@@ -2,6 +2,8 @@ import subprocess
 from uagents import Agent, Context, Protocol
 from models import RemediationProposal, RemediationProof
 
+ALERT_ROUTER_ADDRESS = "agent1qw9lyclq7dap8atgcx00du6l4nm909mg9dvsx45rqangqfagpvtgk37p5e4"
+
 autofix = Agent(
     name="AutoFixAgent",
     seed="autofix_agent_seed_driftshield_005",
@@ -20,14 +22,12 @@ async def startup_autofix(ctx: Context):
 async def handle_remediation_proposal(ctx: Context, sender: str, msg: RemediationProposal):
     ctx.logger.info(f"⚡ [AutoFixAgent] Evaluating Remediation Proposal {msg.proposal_id} from ArchitectAIAgent ({sender[:12]}...).")
     
-    # Safety Check: Require confidence score >= 0.80
     if msg.confidence_score < 0.80:
         ctx.logger.warning(f"⚡ [AutoFixAgent] ⚠️ Proposal {msg.proposal_id} rejected due to low confidence score ({msg.confidence_score*100:.1f}%).")
         return
     
     ctx.logger.info(f"⚡ [AutoFixAgent] Peer-review approved (Confidence: {msg.confidence_score*100:.1f}%). Executing dry-run simulation ONLY (No live AWS mutations)...")
     
-    # Execute safe dry-run simulation using Go binary
     result = subprocess.run(
         ["./driftshield", "all", "fix", "--dry-run"],
         stdout=subprocess.PIPE,
@@ -44,8 +44,11 @@ async def handle_remediation_proposal(ctx: Context, sender: str, msg: Remediatio
         signed_by=autofix.address
     )
     
-    ctx.logger.info(f"⚡ [AutoFixAgent] ✅ Safe dry-run simulation completed. Signed by uAgent {autofix.address[:12]}...")
+    ctx.logger.info(f"⚡ [AutoFixAgent] ✅ Safe dry-run simulation completed. Signed by uAgent {autofix.address[:12]}... Transmitting report to AlertRouterAgent...")
     ctx.storage.set(f"proof_{proof.proposal_id}", proof.dict())
+    
+    # Transmit proof to AlertRouterAgent over uAgent protocol
+    await ctx.send(ALERT_ROUTER_ADDRESS, proof)
 
 autofix.include(Protocol("AutoFixProtocol"))
 

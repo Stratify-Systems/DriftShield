@@ -2,7 +2,8 @@ import uuid
 import datetime
 from uagents import Agent, Context, Protocol
 from models import PolicyViolationAlert, RemediationProposal
-from addresses import AUTOFIX_ADDRESS
+
+AUTOFIX_ADDRESS = "agent1qt043wu6g049vljszuafr275zlwf88cz7pfxetxgq52lmr7z7putxqxvjwk"
 
 ai_architect = Agent(
     name="ArchitectAIAgent",
@@ -47,6 +48,7 @@ async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolation
     ctx.logger.info(f"🧠 [ArchitectAIAgent] Step-by-step human guide {proposal.proposal_id} generated. Transmitting to AutoFixAgent...")
     ctx.storage.set(f"proposal_{proposal.proposal_id}", proposal.dict())
     
+    # Transmit proposal to AutoFixAgent over uAgent protocol
     await ctx.send(AUTOFIX_ADDRESS, proposal)
 
 ai_architect.include(Protocol("AIProtocol"))
