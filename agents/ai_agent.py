@@ -70,7 +70,8 @@ def parse_remediation_from_violations(violations_output: str) -> tuple:
         operator: equals
         value: compliant"""
         
-    confidence_score = 0.96
+    # Dynamically calculate fallback confidence score based on number of parsed remediation steps
+    confidence_score = round(min(0.99, max(0.70, 0.85 + (len(remediation_steps) * 0.04))), 2)
     return target_res_str, rule_id_str, suggested_yaml, fix_action, confidence_score
 
 def generate_remediation_with_groq(ctx: Context, violations_output: str) -> tuple:
@@ -90,23 +91,24 @@ def generate_remediation_with_groq(ctx: Context, violations_output: str) -> tupl
             ctx.logger.info("🧠 [ArchitectAIAgent] Calling Groq LLaMA 3 API (llama-3.3-70b-versatile)...")
             url = "https://api.groq.com/openai/v1/chat/completions"
             prompt = f"""You are a Senior Cloud Security Architect and DevSecOps Specialist.
-Analyze the following live AWS security policy violation output from DriftShield and generate a clear, step-by-step human remediation guide:
+Analyze the following live AWS security policy violation output from DriftShield and generate a clear, step-by-step human remediation guide specifically for the failing resources:
 
 AWS VIOLATION OUTPUT:
 {violations_output}
 
-Return a valid JSON object strictly in the following structure:
+Return a valid JSON object strictly in the following structure (no markdown wrapper outside the JSON):
 {{
     "target_resource": "<Comma separated list of failing resource names/IDs>",
     "rule_id": "<Comma separated list of failing policy rule IDs>",
     "suggested_yaml": "<Valid Policy-as-Code YAML rule for enforcement>",
     "fix_action": "STEP-BY-STEP HUMAN REMEDIATION GUIDE:\\n1. <Step 1>\\n2. <Step 2>...",
-    "confidence_score": 0.96
+    "confidence_score": <Float value between 0.70 and 0.99 evaluating your confidence in this remediation plan based on AWS standards>
 }}"""
 
             headers = {
                 "Authorization": f"Bearer {groq_api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "User-Agent": "DriftShield/2.0"
             }
             payload = {
                 "model": "llama-3.3-70b-versatile",
@@ -122,13 +124,20 @@ Return a valid JSON object strictly in the following structure:
                 result_data = json.loads(resp.read().decode("utf-8"))
                 content = result_data["choices"][0]["message"]["content"]
                 parsed = json.loads(content)
-                ctx.logger.info("🧠 [ArchitectAIAgent] ✅ Groq LLaMA 3 API response received successfully.")
+                ctx.logger.info("🧠 [ArchitectAIAgent] ✅ Groq LLaMA 3 API response received successfully!")
+                
+                score = parsed.get("confidence_score")
+                try:
+                    score = float(score)
+                except (TypeError, ValueError):
+                    score = 0.95
+
                 return (
                     parsed.get("target_resource", "AWS Infrastructure"),
                     parsed.get("rule_id", "POL-AWS-001"),
                     parsed.get("suggested_yaml", "# AI Policy Rule"),
                     parsed.get("fix_action", "Step-by-step guide"),
-                    float(parsed.get("confidence_score", 0.96))
+                    score
                 )
         except Exception as e:
             ctx.logger.warning(f"🧠 [ArchitectAIAgent] Groq API call failed: {e}. Falling back to local dynamic parser.")
@@ -161,7 +170,7 @@ async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolation
         confidence_score=confidence_score
     )
     
-    ctx.logger.info(f"🧠 [ArchitectAIAgent] AI Remediation Guide {proposal.proposal_id} generated for {target_res}. Transmitting to AutoFixAgent...")
+    ctx.logger.info(f"🧠 [ArchitectAIAgent] AI Remediation Guide {proposal.proposal_id} generated for {target_res} (Confidence: {confidence_score*100:.1f}%). Transmitting to AutoFixAgent...")
     ctx.storage.set(f"proposal_{proposal.proposal_id}", proposal.dict())
     save_agent_storage("architect_ai_agent", f"proposal_{proposal.proposal_id}", proposal.dict())
     
