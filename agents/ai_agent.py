@@ -1,7 +1,9 @@
 import os
 import sys
+import json
 import uuid
 import datetime
+import urllib.request
 
 AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
@@ -18,6 +20,121 @@ ai_architect = Agent(
     endpoint=["http://127.0.0.1:8004/submit"]
 )
 
+def parse_remediation_from_violations(violations_output: str) -> tuple:
+    """Fallback parser to extract rule IDs, resources, and remediation steps from CLI output."""
+    rule_ids = []
+    resources = []
+    remediation_steps = []
+    
+    lines = violations_output.splitlines()
+    for line in lines:
+        if "[FAIL]" in line:
+            parts = line.split("[FAIL]")
+            if len(parts) > 1:
+                detail = parts[1].strip()
+                if "[" in detail and "]" in detail:
+                    rule_id = detail.split("[")[1].split("]")[0]
+                    rule_ids.append(rule_id)
+                if "Resource:" in detail:
+                    res = detail.split("Resource:")[1].strip()
+                    resources.append(res)
+                    
+        if "Remediation:" in line:
+            rem = line.split("Remediation:")[1].strip()
+            remediation_steps.append(rem)
+            
+    if not rule_ids:
+        rule_ids = ["POL-AWS-001"]
+    if not resources:
+        resources = ["AWS Infrastructure"]
+        
+    rule_id_str = " / ".join(list(dict.fromkeys(rule_ids)))
+    target_res_str = " / ".join(list(dict.fromkeys(resources)))
+    
+    formatted_steps = [f"{idx}. {step}" for idx, step in enumerate(remediation_steps, 1)]
+    if not formatted_steps:
+        formatted_steps = [
+            "1. Review Policy-as-Code YAML rules in policies/ directory.",
+            "2. Apply required security baseline configurations."
+        ]
+        
+    steps_txt = "\n".join(formatted_steps)
+    fix_action = f"STEP-BY-STEP HUMAN REMEDIATION GUIDE FOR {target_res_str}:\n{steps_txt}\n{len(formatted_steps)+1}. Re-run './driftshield policy scan' to verify 100% compliance."
+    
+    suggested_yaml = f"""- id: {rule_ids[0]}
+  name: Enforce Security Compliance for {resources[0]}
+  severity: HIGH
+  conditions:
+    all:
+      - field: status
+        operator: equals
+        value: compliant"""
+        
+    confidence_score = 0.96
+    return target_res_str, rule_id_str, suggested_yaml, fix_action, confidence_score
+
+def generate_remediation_with_groq(ctx: Context, violations_output: str) -> tuple:
+    """Invokes Groq LLaMA 3 AI model to synthesize step-by-step human remediation guide and YAML rules."""
+    groq_api_key = os.getenv("GROQ_API_KEY", "")
+    if not groq_api_key:
+        env_file = os.path.join(PROJECT_ROOT, ".env")
+        if os.path.exists(env_file):
+            with open(env_file, "r") as f:
+                for line in f:
+                    if line.startswith("GROQ_API_KEY="):
+                        groq_api_key = line.split("=", 1)[1].strip()
+                        break
+
+    if groq_api_key:
+        try:
+            ctx.logger.info("🧠 [ArchitectAIAgent] Calling Groq LLaMA 3 API (llama-3.3-70b-versatile)...")
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            prompt = f"""You are a Senior Cloud Security Architect and DevSecOps Specialist.
+Analyze the following live AWS security policy violation output from DriftShield and generate a clear, step-by-step human remediation guide:
+
+AWS VIOLATION OUTPUT:
+{violations_output}
+
+Return a valid JSON object strictly in the following structure:
+{{
+    "target_resource": "<Comma separated list of failing resource names/IDs>",
+    "rule_id": "<Comma separated list of failing policy rule IDs>",
+    "suggested_yaml": "<Valid Policy-as-Code YAML rule for enforcement>",
+    "fix_action": "STEP-BY-STEP HUMAN REMEDIATION GUIDE:\\n1. <Step 1>\\n2. <Step 2>...",
+    "confidence_score": 0.96
+}}"""
+
+            headers = {
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.2,
+                "response_format": {"type": "json_object"}
+            }
+
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result_data = json.loads(resp.read().decode("utf-8"))
+                content = result_data["choices"][0]["message"]["content"]
+                parsed = json.loads(content)
+                ctx.logger.info("🧠 [ArchitectAIAgent] ✅ Groq LLaMA 3 API response received successfully.")
+                return (
+                    parsed.get("target_resource", "AWS Infrastructure"),
+                    parsed.get("rule_id", "POL-AWS-001"),
+                    parsed.get("suggested_yaml", "# AI Policy Rule"),
+                    parsed.get("fix_action", "Step-by-step guide"),
+                    float(parsed.get("confidence_score", 0.96))
+                )
+        except Exception as e:
+            ctx.logger.warning(f"🧠 [ArchitectAIAgent] Groq API call failed: {e}. Falling back to local dynamic parser.")
+
+    return parse_remediation_from_violations(violations_output)
+
 @ai_architect.on_event("startup")
 async def startup_ai(ctx: Context):
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
@@ -28,30 +145,23 @@ async def startup_ai(ctx: Context):
 @ai_architect.on_message(model=PolicyViolationAlert)
 async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolationAlert):
     ctx.logger.info(f"🧠 [ArchitectAIAgent] Received violation alert from PolicyGuardAgent ({sender[:12]}...).")
-    ctx.logger.info("🧠 [ArchitectAIAgent] Synthesizing step-by-step human remediation guide (No direct AI mutations)...")
+    
+    raw_output = ""
+    if msg.violations and isinstance(msg.violations, list) and "output" in msg.violations[0]:
+        raw_output = msg.violations[0]["output"]
+
+    target_res, rule_id, suggested_yaml, fix_action, confidence_score = generate_remediation_with_groq(ctx, raw_output)
     
     proposal = RemediationProposal(
         proposal_id=str(uuid.uuid4())[:8],
-        target_resource="vpc-047a7050c76e7c3c1 / sg-0cbb4bc1962b31199",
-        rule_id="POL-VPC-001 / POL-IAM-001",
-        suggested_yaml="""- id: POL-VPC-001
-  name: Enforce VPC Flow Logs
-  service: vpc
-  severity: HIGH
-  conditions:
-    all:
-      - field: flow_logs_enabled
-        operator: equals
-        value: true""",
-        fix_action="""STEP-BY-STEP HUMAN REMEDIATION GUIDE:
-1. Open AWS Management Console -> VPC Dashboard.
-2. Select VPC 'vpc-047a7050c76e7c3c1' -> Flow Logs tab -> Create Flow Log.
-3. Open IAM Console -> Users -> 'drift-shield-user' -> Security Credentials -> Assign MFA device.
-4. Run './driftshield policy scan' to verify 100% compliance.""",
-        confidence_score=0.96
+        target_resource=target_res,
+        rule_id=rule_id,
+        suggested_yaml=suggested_yaml,
+        fix_action=fix_action,
+        confidence_score=confidence_score
     )
     
-    ctx.logger.info(f"🧠 [ArchitectAIAgent] Step-by-step human guide {proposal.proposal_id} generated. Transmitting to AutoFixAgent...")
+    ctx.logger.info(f"🧠 [ArchitectAIAgent] AI Remediation Guide {proposal.proposal_id} generated for {target_res}. Transmitting to AutoFixAgent...")
     ctx.storage.set(f"proposal_{proposal.proposal_id}", proposal.dict())
     save_agent_storage("architect_ai_agent", f"proposal_{proposal.proposal_id}", proposal.dict())
     
