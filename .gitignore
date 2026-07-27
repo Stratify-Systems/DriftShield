@@ -44,3 +44,10 @@ reports/*.pdf
 # Environment
 .env
 .envrc
+
+# Python
+__pycache__/
+*.pyc
+agents/venv/
+*.egg-info/
+

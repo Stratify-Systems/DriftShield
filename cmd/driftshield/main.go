@@ -1096,11 +1096,6 @@ func runAllScans() {
 	if total > 0 {
 		fmt.Printf("\n[!] Total issues found: %d\n", total)
 		exitWithFailure = true
-		for _, r := range results {
-			if r.risk > 0 || r.findings > 0 {
-				r.alertFn()
-			}
-		}
 	} else {
 		fmt.Println("\n[+] All resources are secure!")
 	}
