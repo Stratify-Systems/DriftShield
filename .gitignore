@@ -45,9 +45,9 @@ reports/*.pdf
 .env
 .envrc
 
-# Python
-__pycache__/
-*.pyc
-agents/venv/
-*.egg-info/
+# AgentVerse Storage
+*_data.json
+agents_data/
+agents/*_data.json
+
 

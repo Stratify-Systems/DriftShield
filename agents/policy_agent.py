@@ -1,7 +1,9 @@
 import subprocess
 import datetime
-from uagents import Agent, Context, Protocol
+from uagents import Agent, Context
 from models import CloudStateTelemetry, PolicyViolationAlert
+
+ARCHITECT_AI_ADDRESS = "agent1qghyly2etc8y4xem7x62jexaw26lp7upte9kgpyktkuuk5jznfz4qk3lu7c"
 
 policy_guard = Agent(
     name="PolicyGuardAgent",
@@ -22,7 +24,6 @@ async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
     ctx.logger.info(f"🛡️ [PolicyGuardAgent] Received telemetry from ScannerAgent ({sender[:12]}...).")
     ctx.logger.info("🛡️ [PolicyGuardAgent] Evaluating live AWS resources against YAML policy rules...")
     
-    # Run policy scan using Go engine
     result = subprocess.run(
         ["./driftshield", "policy", "scan"],
         stdout=subprocess.PIPE,
@@ -41,6 +42,9 @@ async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
             violations=[{"output": output}]
         )
         ctx.storage.set("latest_violation", alert.dict())
+        
+        # Transmit violation alert to ArchitectAIAgent
+        await ctx.send(ARCHITECT_AI_ADDRESS, alert)
     else:
         ctx.logger.info("🛡️ [PolicyGuardAgent] ✅ 100% Policy Compliance verified. 0 violations.")
 
