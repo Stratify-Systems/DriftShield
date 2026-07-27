@@ -23,3 +23,10 @@ class RemediationProposal(Model):
     suggested_yaml: str
     fix_action: str
     confidence_score: float
+
+class RemediationProof(Model):
+    proposal_id: str
+    target_resource: str
+    status: str
+    dry_run_output: str
+    signed_by: str
