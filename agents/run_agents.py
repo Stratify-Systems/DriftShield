@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+import glob
 
 # Add agents directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -13,7 +14,23 @@ from ai_agent import ai_architect
 from autofix_agent import autofix
 from alert_agent import alert_router
 
+def cleanup_json_files():
+    """Clean up any JSON storage files so only Markdown (.md) reports are kept."""
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    agents_data = os.path.join(project_root, "agents_data")
+    
+    for folder in [project_root, agents_data]:
+        if os.path.exists(folder):
+            for pattern in ["agent1q*.json", "*_data.json", "*.json"]:
+                for filepath in glob.glob(os.path.join(folder, pattern)):
+                    try:
+                        os.remove(filepath)
+                    except Exception:
+                        pass
+
 def main():
+    cleanup_json_files()
+    
     print(r"""
     ____       _  __ __  _____ __    _      __    __
    / __ \_____(_)/ // /_/ ___// /_  (_)__  / /___/ /

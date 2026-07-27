@@ -48,7 +48,6 @@ async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
             total_violations=1,
             violations=[{"output": output}]
         )
-        ctx.storage.set("latest_violation", alert.dict())
         save_agent_storage("policy_guard_agent", "latest_violation", alert.dict())
         
         await ctx.send(ARCHITECT_AI_ADDRESS, alert)

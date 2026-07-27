@@ -69,13 +69,17 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ---
 
-## State Persistence & Dual-Format Reporting
+## State Persistence & Human-Readable Markdown Reports
 
-Agent states are persisted inside the **`agents_data/`** directory in dual formats:
-- **Clean JSON Datastores:** `agents_data/scanner_agent.json`, `agents_data/policy_guard_agent.json`, `agents_data/architect_ai_agent.json`, etc.
-- **Human-Readable Markdown Reports:** `agents_data/architect_ai_agent_report.md`, `agents_data/autofix_agent_report.md`, etc., rendering beautiful Markdown summaries with headers, code blocks, and step-by-step lists.
+Agent state reports are persisted inside the **`agents_data/`** directory in **Human-Readable Markdown format (`*_report.md`)**:
+- **`agents_data/scanner_agent_report.md`**: Live AWS telemetry snapshot.
+- **`agents_data/policy_guard_agent_report.md`**: Policy violation dossier.
+- **`agents_data/drift_sentinel_agent_report.md`**: Anti-tampering baseline diff report.
+- **`agents_data/architect_ai_agent_report.md`**: Groq LLaMA 3 AI step-by-step human remediation guide.
+- **`agents_data/autofix_agent_report.md`**: Safe `--dry-run` simulation audit proof.
+- **`agents_data/alert_router_agent_report.md`**: Consolidated DevSecOps audit summary.
 
-All `agents_data/` contents and `__pycache__` directories are excluded from source control via [.gitignore](file:///home/suryatk/DriftShield/.gitignore).
+To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_files()` on startup, leaving strictly clean `.md` Markdown reports inside `agents_data/`. All `agents_data/` files and `__pycache__` directories are excluded from git tracking via [.gitignore](file:///home/suryatk/DriftShield/.gitignore).
 
 ---
 

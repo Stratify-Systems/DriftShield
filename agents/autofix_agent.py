@@ -52,7 +52,6 @@ async def handle_remediation_proposal(ctx: Context, sender: str, msg: Remediatio
     )
     
     ctx.logger.info(f"⚡ [AutoFixAgent] ✅ Safe dry-run simulation completed. Signed by uAgent {autofix.address[:12]}... Transmitting report to AlertRouterAgent...")
-    ctx.storage.set(f"proof_{proof.proposal_id}", proof.dict())
     save_agent_storage("autofix_agent", f"proof_{proof.proposal_id}", proof.dict())
     
     await ctx.send(ALERT_ROUTER_ADDRESS, proof)

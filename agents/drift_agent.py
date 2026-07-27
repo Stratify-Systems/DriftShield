@@ -46,7 +46,6 @@ async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
             total_drifts=1,
             drifts=[{"output": output}]
         )
-        ctx.storage.set("latest_drift", alert.dict())
         save_agent_storage("drift_sentinel_agent", "latest_drift", alert.dict())
     else:
         ctx.logger.info("🔍 [DriftSentinelAgent] ✔ No baseline drift detected. All states match S3 state bucket.")

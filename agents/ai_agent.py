@@ -70,7 +70,6 @@ def parse_remediation_from_violations(violations_output: str) -> tuple:
         operator: equals
         value: compliant"""
         
-    # Dynamically calculate fallback confidence score based on number of parsed remediation steps
     confidence_score = round(min(0.99, max(0.70, 0.85 + (len(remediation_steps) * 0.04))), 2)
     return target_res_str, rule_id_str, suggested_yaml, fix_action, confidence_score
 
@@ -171,7 +170,6 @@ async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolation
     )
     
     ctx.logger.info(f"🧠 [ArchitectAIAgent] AI Remediation Guide {proposal.proposal_id} generated for {target_res} (Confidence: {confidence_score*100:.1f}%). Transmitting to AutoFixAgent...")
-    ctx.storage.set(f"proposal_{proposal.proposal_id}", proposal.dict())
     save_agent_storage("architect_ai_agent", f"proposal_{proposal.proposal_id}", proposal.dict())
     
     await ctx.send(AUTOFIX_ADDRESS, proposal)

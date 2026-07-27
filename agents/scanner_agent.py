@@ -46,7 +46,6 @@ async def periodic_scan(ctx: Context):
         )
         
         ctx.logger.info(f"🕵️‍♂️ [ScannerAgent] AWS telemetry captured ({len(raw_output)} bytes). Broadcasting to PolicyGuard & DriftSentinel...")
-        ctx.storage.set("latest_telemetry", telemetry.dict())
         save_agent_storage("scanner_agent", "latest_telemetry", telemetry.dict())
         
         await ctx.send(POLICY_GUARD_ADDRESS, telemetry)
