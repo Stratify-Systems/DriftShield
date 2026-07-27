@@ -1,6 +1,12 @@
+import os
+import sys
 import subprocess
+
+AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
+
 from uagents import Agent, Context, Protocol
-from models import RemediationProposal, RemediationProof
+from models import RemediationProposal, RemediationProof, save_agent_storage
 
 ALERT_ROUTER_ADDRESS = "agent1qw9lyclq7dap8atgcx00du6l4nm909mg9dvsx45rqangqfagpvtgk37p5e4"
 
@@ -30,6 +36,7 @@ async def handle_remediation_proposal(ctx: Context, sender: str, msg: Remediatio
     
     result = subprocess.run(
         ["./driftshield", "all", "fix", "--dry-run"],
+        cwd=PROJECT_ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True
@@ -46,8 +53,8 @@ async def handle_remediation_proposal(ctx: Context, sender: str, msg: Remediatio
     
     ctx.logger.info(f"⚡ [AutoFixAgent] ✅ Safe dry-run simulation completed. Signed by uAgent {autofix.address[:12]}... Transmitting report to AlertRouterAgent...")
     ctx.storage.set(f"proof_{proof.proposal_id}", proof.dict())
+    save_agent_storage("autofix_agent", f"proof_{proof.proposal_id}", proof.dict())
     
-    # Transmit proof to AlertRouterAgent over uAgent protocol
     await ctx.send(ALERT_ROUTER_ADDRESS, proof)
 
 autofix.include(Protocol("AutoFixProtocol"))

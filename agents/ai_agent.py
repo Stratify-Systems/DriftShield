@@ -1,7 +1,13 @@
+import os
+import sys
 import uuid
 import datetime
+
+AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
+
 from uagents import Agent, Context, Protocol
-from models import PolicyViolationAlert, RemediationProposal
+from models import PolicyViolationAlert, RemediationProposal, save_agent_storage
 
 AUTOFIX_ADDRESS = "agent1qt043wu6g049vljszuafr275zlwf88cz7pfxetxgq52lmr7z7putxqxvjwk"
 
@@ -47,8 +53,8 @@ async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolation
     
     ctx.logger.info(f"🧠 [ArchitectAIAgent] Step-by-step human guide {proposal.proposal_id} generated. Transmitting to AutoFixAgent...")
     ctx.storage.set(f"proposal_{proposal.proposal_id}", proposal.dict())
+    save_agent_storage("architect_ai_agent", f"proposal_{proposal.proposal_id}", proposal.dict())
     
-    # Transmit proposal to AutoFixAgent over uAgent protocol
     await ctx.send(AUTOFIX_ADDRESS, proposal)
 
 ai_architect.include(Protocol("AIProtocol"))

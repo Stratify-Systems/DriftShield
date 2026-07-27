@@ -1,7 +1,13 @@
+import os
+import sys
 import subprocess
 import datetime
+
+AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
+
 from uagents import Agent, Context
-from models import CloudStateTelemetry
+from models import CloudStateTelemetry, save_agent_storage
 
 POLICY_GUARD_ADDRESS = "agent1qvs9er6w78u606a6952zlf2ejng89a5nelq096xys0hvf8xtjmrwq5ljm2a"
 DRIFT_SENTINEL_ADDRESS = "agent1qtp3c0576aqfqnpqr6m7j79m8txa88a4x2x2jjshdmlpytg0cm5r2cts6p7"
@@ -26,6 +32,7 @@ async def periodic_scan(ctx: Context):
     try:
         result = subprocess.run(
             ["./driftshield", "all"],
+            cwd=PROJECT_ROOT,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -40,8 +47,8 @@ async def periodic_scan(ctx: Context):
         
         ctx.logger.info(f"🕵️‍♂️ [ScannerAgent] AWS telemetry captured ({len(raw_output)} bytes). Broadcasting to PolicyGuard & DriftSentinel...")
         ctx.storage.set("latest_telemetry", telemetry.dict())
+        save_agent_storage("scanner_agent", "latest_telemetry", telemetry.dict())
         
-        # Broadcast telemetry to Agent 2 (PolicyGuard) and Agent 3 (DriftSentinel) in parallel
         await ctx.send(POLICY_GUARD_ADDRESS, telemetry)
         await ctx.send(DRIFT_SENTINEL_ADDRESS, telemetry)
     except Exception as e:

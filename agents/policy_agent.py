@@ -1,7 +1,13 @@
+import os
+import sys
 import subprocess
 import datetime
+
+AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
+
 from uagents import Agent, Context
-from models import CloudStateTelemetry, PolicyViolationAlert
+from models import CloudStateTelemetry, PolicyViolationAlert, save_agent_storage
 
 ARCHITECT_AI_ADDRESS = "agent1qghyly2etc8y4xem7x62jexaw26lp7upte9kgpyktkuuk5jznfz4qk3lu7c"
 
@@ -26,6 +32,7 @@ async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
     
     result = subprocess.run(
         ["./driftshield", "policy", "scan"],
+        cwd=PROJECT_ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True
@@ -42,8 +49,8 @@ async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
             violations=[{"output": output}]
         )
         ctx.storage.set("latest_violation", alert.dict())
+        save_agent_storage("policy_guard_agent", "latest_violation", alert.dict())
         
-        # Transmit violation alert to ArchitectAIAgent
         await ctx.send(ARCHITECT_AI_ADDRESS, alert)
     else:
         ctx.logger.info("🛡️ [PolicyGuardAgent] ✅ 100% Policy Compliance verified. 0 violations.")
