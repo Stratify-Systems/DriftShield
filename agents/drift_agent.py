@@ -26,7 +26,7 @@ async def startup_drift(ctx: Context):
 @drift_sentinel.on_message(model=CloudStateTelemetry)
 async def handle_telemetry(ctx: Context, sender: str, msg: CloudStateTelemetry):
     ctx.logger.info(f"🔍 [DriftSentinelAgent] Received telemetry from ScannerAgent ({sender[:12]}...).")
-    ctx.logger.info("🔍 [DriftSentinelAgent] Diffing live AWS state against S3 Remote State baselines...")
+    ctx.logger.info("🔍 [DriftSentinelAgent] Diffing live AWS state across S3, EC2, IAM, CloudTrail, VPC & RDS against Remote State baselines...")
     
     result = subprocess.run(
         ["./driftshield", "all", "drift"],
