@@ -3,6 +3,8 @@ import datetime
 from uagents import Agent, Context
 from models import CloudStateTelemetry
 
+POLICY_GUARD_ADDRESS = "agent1qvs9er6w78u606a6952zlf2ejng89a5nelq096xys0hvf8xtjmrwq5ljm2a"
+
 scanner = Agent(
     name="ScannerAgent",
     seed="scanner_agent_seed_driftshield_001",
@@ -35,8 +37,11 @@ async def periodic_scan(ctx: Context):
             raw_output=raw_output
         )
         
-        ctx.logger.info(f"🕵️‍♂️ [ScannerAgent] AWS telemetry captured successfully ({len(raw_output)} bytes).")
+        ctx.logger.info(f"🕵️‍♂️ [ScannerAgent] AWS telemetry captured successfully ({len(raw_output)} bytes). Sending to PolicyGuardAgent...")
         ctx.storage.set("latest_telemetry", telemetry.dict())
+        
+        # Transmit telemetry to PolicyGuardAgent over uAgent protocol
+        await ctx.send(POLICY_GUARD_ADDRESS, telemetry)
     except Exception as e:
         ctx.logger.error(f"❌ [ScannerAgent] Failed to execute scan: {e}")
 
