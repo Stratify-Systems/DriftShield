@@ -175,6 +175,12 @@ async def index_handler(request):
         return web.FileResponse(html_path)
     return web.Response(text="<h1>DriftShield Dashboard HTML not found</h1>", content_type="text/html")
 
+async def css_handler(request):
+    css_path = os.path.join(AGENTS_DIR, "dashboard.css")
+    if os.path.exists(css_path):
+        return web.FileResponse(css_path)
+    return web.Response(text="", content_type="text/css")
+
 async def start_background_tasks(app):
     app['watcher'] = asyncio.create_task(background_watcher())
 
@@ -185,6 +191,7 @@ async def cleanup_background_tasks(app):
 def create_app():
     app = web.Application()
     app.router.add_get('/', index_handler)
+    app.router.add_get('/dashboard.css', css_handler)
     app.router.add_get('/ws', websocket_handler)
     app.router.add_post('/api/scan', trigger_scan_handler)
     app.on_startup.append(start_background_tasks)
