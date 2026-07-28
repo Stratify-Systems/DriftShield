@@ -3,6 +3,7 @@ import sys
 import os
 import glob
 import subprocess
+import time
 
 # Add agents directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +34,14 @@ def start_dashboard_server():
     """Launch dashboard_server.py in a background process from agents/dashboard directory."""
     agents_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(agents_dir, "dashboard", "dashboard_server.py")
+    
+    # Ensure port 8080 is free by clearing stale dashboard instances
+    try:
+        subprocess.run(["pkill", "-9", "-f", "dashboard_server.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.5)
+    except Exception:
+        pass
+
     try:
         subprocess.Popen([sys.executable, server_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print("🌐 DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8080\n")
