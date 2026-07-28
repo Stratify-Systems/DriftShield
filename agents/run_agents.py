@@ -13,7 +13,7 @@ from scanner_agent import scanner
 from policy_agent import policy_guard
 from drift_agent import drift_sentinel
 from ai_agent import ai_architect
-from autofix_agent import autofix
+from remediation_agent import remediation_agent
 from alert_agent import alert_router
 
 def cleanup_json_files():
@@ -71,7 +71,7 @@ def main():
     bureau.add(policy_guard)
     bureau.add(drift_sentinel)
     bureau.add(ai_architect)
-    bureau.add(autofix)
+    bureau.add(remediation_agent)
     bureau.add(alert_router)
     
     print("Starting all 6 Fetch.ai AgentVerse Agents...")
@@ -79,7 +79,7 @@ def main():
     print(f"  2. PolicyGuardAgent   [{policy_guard.address}]")
     print(f"  3. DriftSentinelAgent [{drift_sentinel.address}]")
     print(f"  4. ArchitectAIAgent   [{ai_architect.address}]")
-    print(f"  5. AutoFixAgent        [{autofix.address}]")
+    print(f"  5. RemediationAgent   [{remediation_agent.address}]")
     print(f"  6. AlertRouterAgent   [{alert_router.address}]\n")
 
     bureau.run()

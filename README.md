@@ -97,7 +97,7 @@ DriftShield/
 │   ├── policy_agent.py          # Agent 2: Policy Guard (Port 8002)
 │   ├── drift_agent.py           # Agent 3: Drift Sentinel (Port 8003)
 │   ├── ai_agent.py              # Agent 4: Architect AI (Port 8004)
-│   ├── autofix_agent.py         # Agent 5: Auto Fix Safety Auditor (Port 8005)
+│   ├── remediation_agent.py     # Agent 5: Remediation Auditor (Port 8005)
 │   ├── alert_agent.py           # Agent 6: Alert Router (Port 8006)
 │   ├── models.py                # Inter-Agent Message Schemas & Markdown Reporter
 │   └── dashboard/               # Real-Time DevSecOps Web Dashboard
@@ -106,7 +106,7 @@ DriftShield/
 │       └── dashboard.css        # Liquid Glass CSS Design System
 ├── agents_data/                 # Generated Markdown Reports (Git Ignored)
 │   ├── architect_ai_agent_report.md
-│   ├── autofix_agent_report.md
+│   ├── remediation_agent_report.md
 │   ├── policy_guard_agent_report.md
 │   ├── scanner_agent_report.md
 │   ├── alert_router_agent_report.md
@@ -167,7 +167,7 @@ python3 agents/run_agents.py
 ```
 
 This master launcher starts:
-1. All 6 Fetch.ai uAgents on the `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `AutoFix`, `AlertRouter`).
+1. All 6 Fetch.ai uAgents on the `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`).
 2. The Real-Time DevSecOps WebSocket Dashboard server at **`http://localhost:8080`**.
 
 ### Dashboard Features (`http://localhost:8080`)

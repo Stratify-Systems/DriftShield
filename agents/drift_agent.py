@@ -30,12 +30,23 @@ async def handle_telemetry(ctx: Context, sender: str, msg: TelemetryData):
     ctx.logger.info(f"[DriftSentinelAgent] Received telemetry from ScannerAgent ({sender[:12]}...).")
     ctx.logger.info("[DriftSentinelAgent] Diffing live AWS state across S3, EC2, IAM, CloudTrail, VPC & RDS against Remote State baselines...")
     
-    drift_output = msg.raw_output
-    has_drift = ("DRIFT DETECTED" in drift_output.upper() or "MISCONFIGURATION" in drift_output.upper())
+    try:
+        proc = subprocess.run(
+            ["./driftshield", "all", "drift"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        drift_output = proc.stdout if proc.stdout else proc.stderr
+    except Exception as e:
+        drift_output = f"Failed to execute drift detection: {e}"
+        
+    has_drift = ("DRIFT DETECTED" in drift_output.upper() or "MISCONFIGURATION" in drift_output.upper() or "MODIFIED" in drift_output.upper())
     
     save_agent_storage("drift_sentinel_agent", {
         "drift_detected": has_drift,
-        "raw_output": drift_output
+        "drift_output": drift_output
     }, drift_sentinel.address)
     
     if has_drift:

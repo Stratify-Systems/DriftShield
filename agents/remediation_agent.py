@@ -9,23 +9,23 @@ from models import RemediationProposal, RemediationProof, save_agent_storage
 
 ALERT_ROUTER_ADDRESS = "agent1qw9lyclq7dap8atgcx00du6l4nm909mg9dvsx45rqangqfagpvtgk37p5e4"
 
-autofix = Agent(
-    name="AutoFixAgent",
+remediation_agent = Agent(
+    name="RemediationAgent",
     seed="autofix_agent_seed_driftshield_005",
     port=8005,
     endpoint=["http://127.0.0.1:8005/submit"]
 )
 
-@autofix.on_event("startup")
-async def startup_autofix(ctx: Context):
+@remediation_agent.on_event("startup")
+async def startup_remediation(ctx: Context):
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
-    ctx.logger.info("DRIFTSHIELD - AGENT 5: AUTO FIX SAFETY AUDITOR ONLINE")
+    ctx.logger.info("DRIFTSHIELD - AGENT 5: REMEDIATION AGENT ONLINE")
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
 
-@autofix.on_message(model=RemediationProposal)
+@remediation_agent.on_message(model=RemediationProposal)
 async def handle_remediation_proposal(ctx: Context, sender: str, msg: RemediationProposal):
-    ctx.logger.info(f"[AutoFixAgent] Reviewing Remediation Proposal {msg.proposal_id} from ArchitectAIAgent ({sender[:12]}...).")
-    ctx.logger.info("[AutoFixAgent] Preparing Step-by-Step Human Remediation Guide (0 AWS API modifications executed)...")
+    ctx.logger.info(f"[RemediationAgent] Reviewing Remediation Proposal {msg.proposal_id} from ArchitectAIAgent ({sender[:12]}...).")
+    ctx.logger.info("[RemediationAgent] Preparing Step-by-Step Human Remediation Guide (0 AWS API modifications executed)...")
     
     remediation_guide = (
         f"PROPOSAL ID: {msg.proposal_id}\n"
@@ -40,7 +40,7 @@ async def handle_remediation_proposal(ctx: Context, sender: str, msg: Remediatio
         "proposal_id": msg.proposal_id,
         "target_resource": msg.target_resource,
         "remediation_guide": remediation_guide,
-        "signed_by": autofix.address
+        "signed_by": remediation_agent.address
     }
     
     proof = RemediationProof(
@@ -48,15 +48,15 @@ async def handle_remediation_proposal(ctx: Context, sender: str, msg: Remediatio
         target_resource=msg.target_resource,
         status="HUMAN_REMEDIATION_GUIDE_PREPARED",
         dry_run_output=remediation_guide,
-        signed_by=autofix.address
+        signed_by=remediation_agent.address
     )
     
-    save_agent_storage("autofix_agent", proof_data, autofix.address)
-    ctx.logger.info(f"[AutoFixAgent] Verified human remediation guide for proposal {msg.proposal_id}. Signed by uAgent auditor {autofix.address[:12]}... Transmitting to AlertRouterAgent...")
+    save_agent_storage("remediation_agent", proof_data, remediation_agent.address)
+    ctx.logger.info(f"[RemediationAgent] Verified human remediation guide for proposal {msg.proposal_id}. Signed by uAgent auditor {remediation_agent.address[:12]}... Transmitting to AlertRouterAgent...")
     
     await ctx.send(ALERT_ROUTER_ADDRESS, proof)
 
-autofix.include(Protocol("AutoFixProtocol"))
+remediation_agent.include(Protocol("RemediationProtocol"))
 
 if __name__ == "__main__":
-    autofix.run()
+    remediation_agent.run()

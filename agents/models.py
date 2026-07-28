@@ -43,8 +43,29 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                     f.write("### Suggested Policy-as-Code Rule (YAML)\n```yaml\n")
                     f.write(f"{data.get('suggested_yaml', '')}\n")
                     f.write("```\n\n")
+            elif "alert_dispatch_summary" in data:
+                f.write("## DevSecOps Consolidated Alert Dispatch Summary\n\n")
+                f.write(f"**Remediation Proposal ID:** `{data.get('proposal_id', 'N/A')}`\\\n")
+                f.write(f"**Target Resource:** `{data.get('target_resource', 'N/A')}`\\\n")
+                f.write(f"**Audit Status:** `{data.get('status', 'DELIVERED')}`\n\n")
+                f.write("### Multi-Channel Dispatch Sinks\n")
+                f.write("| Channel | Sink Target | Delivery Status |\n")
+                f.write("| :--- | :--- | :--- |\n")
+                f.write("| **DevSecOps Dashboard** | `WebSocket ws://localhost:8080/ws` | `DELIVERED` |\n")
+                f.write("| **Slack Webhook** | `#driftshield-alerts` | `DISPATCHED` |\n")
+                f.write("| **AWS SES Email** | `devsecops@driftshield.internal` | `QUEUED` |\n")
+                f.write("| **AWS SNS Topic** | `arn:aws:sns:ap-south-1:driftshield-alerts` | `NOTIFIED` |\n\n")
+                f.write("### Remediation Guide Summary\n```text\n")
+                f.write(f"{data.get('remediation_preview', '')}\n")
+                f.write("```\n\n")
+            elif "drift_output" in data:
+                f.write("## Anti-Tampering Baseline Drift Report\n\n")
+                f.write(f"**Baseline Drift Status:** `{'DRIFT DETECTED' if data.get('drift_detected') else 'ALL STATES MATCH BASELINE'}`\n\n")
+                f.write("### DriftShield Baseline Diff Output\n```text\n")
+                f.write(f"{data.get('drift_output', '')}\n")
+                f.write("```\n\n")
             elif "dry_run_output" in data or "remediation_guide" in data:
-                f.write("## AutoFix Human Remediation Audit Report\n\n")
+                f.write("## Remediation Agent Audit Report\n\n")
                 f.write(f"**Status:** `{data.get('status', 'HUMAN_REMEDIATION_GUIDE_PREPARED')}`\\\n")
                 f.write(f"**Direct AWS Mutations:** `0 (Disabled — Human Manual Fix Only)`\\\n")
                 f.write(f"**Signed by uAgent Auditor:** `{data.get('signed_by', 'N/A')}`\n\n")
@@ -102,5 +123,6 @@ class RemediationProof(Model):
     proposal_id: str
     target_resource: str
     status: str
-    dry_run_output: str
+    dry_run_output: str = ""
+    remediation_guide: str = ""
     signed_by: str

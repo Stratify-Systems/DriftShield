@@ -11,7 +11,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
 from uagents import Agent, Context, Protocol
 from models import PolicyViolationAlert, RemediationProposal, save_agent_storage
 
-AUTOFIX_ADDRESS = "agent1qt043wu6g049vljszuafr275zlwf88cz7pfxetxgq52lmr7z7putxqxvjwk"
+REMEDIATION_AGENT_ADDRESS = "agent1qt043wu6g049vljszuafr275zlwf88cz7pfxetxgq52lmr7z7putxqxvjwk"
 
 ai_architect = Agent(
     name="ArchitectAIAgent",
@@ -162,10 +162,10 @@ async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolation
         fix_action=fix_action
     )
     
-    ctx.logger.info(f"[ArchitectAIAgent] AI Remediation Guide {proposal.proposal_id} generated for {target_res}. Transmitting to AutoFixAgent...")
+    ctx.logger.info(f"[ArchitectAIAgent] AI Remediation Guide {proposal.proposal_id} generated for {target_res}. Transmitting to RemediationAgent...")
     save_agent_storage("architect_ai_agent", f"proposal_{proposal.proposal_id}", proposal.dict())
     
-    await ctx.send(AUTOFIX_ADDRESS, proposal)
+    await ctx.send(REMEDIATION_AGENT_ADDRESS, proposal)
 
 ai_architect.include(Protocol("AIProtocol"))
 
