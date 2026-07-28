@@ -44,3 +44,20 @@ reports/*.pdf
 # Environment
 .env
 .envrc
+
+# AgentVerse Storage & Generated Files
+*_data.json
+agent1q*.json
+agents_data/
+agents_data/*
+agents/*_data.json
+
+# Python Caches & Environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+agents/__pycache__/
+agents/*/__pycache__/
+agents/venv/
+*.egg-info/
