@@ -71,15 +71,25 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ## State Persistence & Human-Readable Markdown Reports
 
-Agent state reports are persisted inside the **`agents_data/`** directory in **Human-Readable Markdown format (`*_report.md`)**:
-- **`agents_data/scanner_agent_report.md`**: Live AWS telemetry snapshot.
-- **`agents_data/policy_guard_agent_report.md`**: Policy violation dossier.
-- **`agents_data/drift_sentinel_agent_report.md`**: Anti-tampering baseline diff report.
-- **`agents_data/architect_ai_agent_report.md`**: Groq LLaMA 3 AI step-by-step human remediation guide.
-- **`agents_data/autofix_agent_report.md`**: Safe `--dry-run` simulation audit proof.
-- **`agents_data/alert_router_agent_report.md`**: Consolidated DevSecOps audit summary.
+Agent state reports are persisted inside the **`dashboard/agents_data/`** directory in **Human-Readable Markdown format (`*_report.md`)**:
+- **`dashboard/agents_data/scanner_agent_report.md`**: Live AWS telemetry snapshot.
+- **`dashboard/agents_data/policy_guard_agent_report.md`**: Policy violation dossier.
+- **`dashboard/agents_data/drift_sentinel_agent_report.md`**: Anti-tampering baseline diff report.
+- **`dashboard/agents_data/architect_ai_agent_report.md`**: Groq LLaMA 3 AI step-by-step human remediation guide.
+- **`dashboard/agents_data/autofix_agent_report.md`**: Safe `--dry-run` simulation audit proof.
+- **`dashboard/agents_data/alert_router_agent_report.md`**: Consolidated DevSecOps audit summary.
 
-To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_files()` on startup, leaving strictly clean `.md` Markdown reports inside `agents_data/`. All `agents_data/` files and `__pycache__` directories are excluded from git tracking via [.gitignore](file:///home/suryatk/DriftShield/.gitignore).
+To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_files()` on startup, leaving strictly clean `.md` Markdown reports inside `dashboard/agents_data/`. All `dashboard/agents_data/` files and `__pycache__` directories are excluded from git tracking via [.gitignore](file:///home/suryatk/DriftShield/.gitignore).
+
+---
+
+## Live WebSockets DevSecOps Dashboard (`agents/dashboard/dashboard_server.py`, `dashboard.html`, `dashboard.css`)
+
+* **Directory:** Cleanly isolated inside `agents/dashboard/`.
+* **Host & Port:** Running on `http://localhost:8080`.
+* **WebSocket Endpoint:** `/ws` providing real-time uAgent status packets (`agent_status`), live Markdown report pushes (`report_update`), and terminal log events (`event_log`).
+* **API Trigger Endpoint:** `POST /api/scan` allowing users to click **"⚡ Trigger Instant Scan"** on the UI to initiate an immediate AWS infrastructure scan.
+* **Liquid Glass UI:** Built with Google Fonts (**Outfit** & **Inter**), live status grid for all 6 agents, interactive Markdown tab switcher (`marked.js`), Liquid Glass CSS design system (`dashboard.css`), and a scrolling cyber terminal event ticker.
 
 ---
 

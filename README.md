@@ -99,9 +99,11 @@ DriftShield/
 │   ├── ai_agent.py              # Agent 4: Architect AI (Port 8004)
 │   ├── autofix_agent.py         # Agent 5: Auto Fix Safety Auditor (Port 8005)
 │   ├── alert_agent.py           # Agent 6: Alert Router (Port 8006)
-│   ├── dashboard_server.py      # Python aiohttp WebSocket Server (Port 8080)
-│   ├── dashboard.html           # Real-Time Glassmorphism Web Dashboard
-│   └── models.py                # Inter-Agent Message Schemas & Markdown Reporter
+│   ├── models.py                # Inter-Agent Message Schemas & Markdown Reporter
+│   └── dashboard/               # Real-Time DevSecOps Web Dashboard
+│       ├── dashboard_server.py  # Python aiohttp WebSocket Server (Port 8080)
+│       ├── dashboard.html       # Real-Time Liquid Glass Web Dashboard UI
+│       └── dashboard.css        # Liquid Glass CSS Design System
 ├── agents_data/                 # Generated Markdown Reports (Git Ignored)
 │   ├── architect_ai_agent_report.md
 │   ├── autofix_agent_report.md

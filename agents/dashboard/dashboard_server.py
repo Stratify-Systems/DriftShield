@@ -7,8 +7,8 @@ import datetime
 import subprocess
 from aiohttp import web, WSMsgType
 
-AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
+DASHBOARD_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(DASHBOARD_DIR, "..", ".."))
 AGENTS_DATA_DIR = os.path.join(PROJECT_ROOT, "agents_data")
 
 ws_clients = set()
@@ -170,13 +170,13 @@ async def background_watcher():
                 ws_clients.discard(ws)
 
 async def index_handler(request):
-    html_path = os.path.join(AGENTS_DIR, "dashboard.html")
+    html_path = os.path.join(DASHBOARD_DIR, "dashboard.html")
     if os.path.exists(html_path):
         return web.FileResponse(html_path)
     return web.Response(text="<h1>DriftShield Dashboard HTML not found</h1>", content_type="text/html")
 
 async def css_handler(request):
-    css_path = os.path.join(AGENTS_DIR, "dashboard.css")
+    css_path = os.path.join(DASHBOARD_DIR, "dashboard.css")
     if os.path.exists(css_path):
         return web.FileResponse(css_path)
     return web.Response(text="", content_type="text/css")

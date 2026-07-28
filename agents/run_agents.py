@@ -30,9 +30,9 @@ def cleanup_json_files():
                         pass
 
 def start_dashboard_server():
-    """Launch dashboard_server.py in a background process."""
+    """Launch dashboard_server.py in a background process from agents/dashboard directory."""
     agents_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(agents_dir, "dashboard_server.py")
+    server_script = os.path.join(agents_dir, "dashboard", "dashboard_server.py")
     try:
         subprocess.Popen([sys.executable, server_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print("🌐 DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8080\n")
