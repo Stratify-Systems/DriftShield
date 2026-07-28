@@ -2,10 +2,15 @@
 
 A cloud security tool that detects S3, EC2, IAM, CloudTrail, VPC, and RDS misconfigurations by monitoring settings against a secure baseline. It identifies risky changes in real-time and alerts administrators before security incidents occur.
 
-Built in Go for fast, single-binary distribution with zero runtime dependencies.
+Built in Go for fast, single-binary distribution with zero runtime dependencies, extended with a **6-Agent Autonomous Fetch.ai `uAgents` Alliance**, **Groq LLaMA 3 70B AI Reasoning**, and a **Real-Time WebSocket DevSecOps Command Center Dashboard**.
 
 ## Features
 
+- **Fetch.ai AgentVerse 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `AutoFix`, `AlertRouter`)
+- **Groq LLaMA 3 70B AI Reasoning Engine**: Live integration with `llama-3.3-70b-versatile` synthesizing step-by-step human remediation guides and custom YAML rules
+- **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8080`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
+- **Human-in-the-Loop AI Safety Guardrail**: Zero direct AI AWS mutations; `AutoFixAgent` executes safe `--dry-run` simulations ONLY and signs digital audit proofs
+- **Clean Markdown State Reporting**: Automatically persists human-readable Markdown reports (`agents_data/*_report.md`) with zero JSON clutter
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
 - **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)
 - **IAM Security Scanning**: Detects root account misconfigurations, missing MFA, admin policy abuse, and stale access keys
@@ -86,6 +91,26 @@ DriftShield/
 │   ├── policy_test.go           # Policy evaluation unit tests
 │   ├── scanner_test.go          # Scanner rule evaluation unit tests
 │   └── storage_test.go          # Storage backend unit tests
+├── agents/                      # Fetch.ai AgentVerse uAgents Alliance
+│   ├── run_agents.py            # Master Bureau Launcher & Dashboard Auto-Start
+│   ├── scanner_agent.py         # Agent 1: Scanner (Port 8001)
+│   ├── policy_agent.py          # Agent 2: Policy Guard (Port 8002)
+│   ├── drift_agent.py           # Agent 3: Drift Sentinel (Port 8003)
+│   ├── ai_agent.py              # Agent 4: Architect AI (Port 8004)
+│   ├── autofix_agent.py         # Agent 5: Auto Fix Safety Auditor (Port 8005)
+│   ├── alert_agent.py           # Agent 6: Alert Router (Port 8006)
+│   ├── dashboard_server.py      # Python aiohttp WebSocket Server (Port 8080)
+│   ├── dashboard.html           # Real-Time Glassmorphism Web Dashboard
+│   └── models.py                # Inter-Agent Message Schemas & Markdown Reporter
+├── agents_data/                 # Generated Markdown Reports (Git Ignored)
+│   ├── architect_ai_agent_report.md
+│   ├── autofix_agent_report.md
+│   ├── policy_guard_agent_report.md
+│   ├── scanner_agent_report.md
+│   ├── alert_router_agent_report.md
+│   └── drift_sentinel_agent_report.md
+├── docs/                        # Project & Alliance Documentation
+│   └── AGENTS.md                # Multi-Agent Architecture Specification
 ├── scripts/
 │   └── scheduled_scan.sh        # Cron job script
 ├── logs/
@@ -120,6 +145,7 @@ DriftShield/
 ### Prerequisites
 
 - **Go 1.21+** (for building from source)
+- **Python 3.10+** (for running the Fetch.ai AgentVerse uAgents Alliance)
 - **AWS CLI** configured with valid credentials:
   ```bash
   aws configure
@@ -127,6 +153,27 @@ DriftShield/
 
 4. Create a `.env` file (copy `.env.example` if available) and update your configurations.
 5. Update configuration in `internal/config/config.go` if needed.
+
+## 🤖 Fetch.ai AgentVerse Multi-Agent Alliance & Web Dashboard
+
+DriftShield features a **6-Agent Autonomous Alliance** built on the **Fetch.ai `uAgents` framework**. The alliance decouples telemetry collection, compliance checking, drift detection, AI reasoning, safety auditing, and alerting into peer-to-peer communicating agents.
+
+### 🚀 Running the Agent Alliance & Web Dashboard
+
+```bash
+python3 agents/run_agents.py
+```
+
+This master launcher starts:
+1. All 6 Fetch.ai uAgents on the `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `AutoFix`, `AlertRouter`).
+2. The Real-Time DevSecOps WebSocket Dashboard server at **`http://localhost:8080`**.
+
+### 🌐 Dashboard Features (`http://localhost:8080`)
+- **Live 6-Agent Health Grid:** Real-time online/offline badges for all uAgents.
+- **Interactive Markdown Tabs:** Renders Groq LLaMA 3 AI remediation guides, dry-run audit proofs, and policy dossiers using `marked.js`.
+- **Live Inter-Agent Event Stream:** Real-time scrolling uAgent message ticker with precise timestamps.
+- **⚡ Trigger Instant Scan Button:** Interactive UI button calling `/api/scan` to launch an immediate AWS infrastructure scan.
+
 
 ## Remote State Backend (S3)
 
