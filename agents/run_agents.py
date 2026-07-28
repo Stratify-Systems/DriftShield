@@ -2,6 +2,7 @@
 import sys
 import os
 import glob
+import subprocess
 
 # Add agents directory to sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -28,6 +29,16 @@ def cleanup_json_files():
                     except Exception:
                         pass
 
+def start_dashboard_server():
+    """Launch dashboard_server.py in a background process."""
+    agents_dir = os.path.dirname(os.path.abspath(__file__))
+    server_script = os.path.join(agents_dir, "dashboard_server.py")
+    try:
+        subprocess.Popen([sys.executable, server_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("🌐 DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8080\n")
+    except Exception as e:
+        print(f"⚠️ Could not start dashboard server: {e}\n")
+
 def main():
     cleanup_json_files()
     
@@ -41,6 +52,8 @@ def main():
  🛡️  DRIFTSHIELD v2.0.0 - AGENTVERSE MULTI-AGENT ALLIANCE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """)
+
+    start_dashboard_server()
 
     bureau = Bureau(port=8000, endpoint=["http://127.0.0.1:8000/submit"])
     

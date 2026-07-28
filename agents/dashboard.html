@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriftShield — Autonomous AgentVerse Security Command Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --bg-card: rgba(15, 23, 42, 0.75);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(56, 189, 248, 0.5);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.3);
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-purple: #a855f7;
+            --accent-cyan: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.12) 0px, transparent 45%),
+                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.12) 0px, transparent 45%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+            background-attachment: fixed;
+            padding: 1.5rem;
+        }
+
+        /* Header Command Bar */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .brand-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .btn-trigger {
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: #ffffff;
+            border: 1px solid rgba(56, 189, 248, 0.5);
+            padding: 0.55rem 1.1rem;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+        }
+
+        .btn-trigger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.6);
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
+        }
+
+        .btn-trigger:active {
+            transform: translateY(0);
+        }
+
+        .connection-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 14px;
+            border-radius: 9999px;
+            border: 1px solid var(--border-card);
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-rose);
+            box-shadow: 0 0 10px var(--accent-rose);
+            transition: all 0.3s ease;
+        }
+
+        .pulse-dot.online {
+            background-color: var(--accent-emerald);
+            box-shadow: 0 0 12px var(--accent-emerald);
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Stats Counter Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 0.85rem 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .stat-info h4 {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-info p {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* 6-Agent Health Grid */
+        .agents-section {
+            margin-bottom: 1.25rem;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 0.85rem;
+        }
+
+        .agent-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 0.85rem;
+            transition: all 0.25s ease;
+            position: relative;
+        }
+
+        .agent-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px -4px rgba(56, 189, 248, 0.3);
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .agent-name {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .agent-port {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .agent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            text-transform: uppercase;
+        }
+
+        .badge-online {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-offline {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--accent-rose);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        /* Workspace Grid */
+        .dashboard-main {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 1.25rem;
+            flex: 1;
+        }
+
+        .tabs-nav {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            padding: 0.7rem 0.85rem;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+
+        .tab-btn.active {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+            border-color: rgba(56, 189, 248, 0.3);
+            font-weight: 600;
+        }
+
+        .tab-new-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            background: var(--accent-emerald);
+            color: #000000;
+            padding: 1px 5px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .tab-new-badge.visible {
+            display: inline-block;
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        /* Report Viewer Container */
+        .viewer-container {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-card);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 0.85rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-card);
+        }
+
+        .viewer-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .last-updated {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .markdown-body {
+            font-size: 0.88rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+            overflow-y: auto;
+            max-height: 480px;
+            padding-right: 0.5rem;
+        }
+
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            font-family: 'Outfit', sans-serif;
+            color: #ffffff;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .markdown-body code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            font-size: 0.85em;
+        }
+
+        .markdown-body pre {
+            background: rgba(4, 7, 13, 0.9);
+            border: 1px solid var(--border-card);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            overflow-x: auto;
+            margin: 0.75rem 0;
+        }
+
+        .markdown-body pre code {
+            background: transparent;
+            padding: 0;
+            color: #e2e8f0;
+        }
+
+        /* Real-Time Terminal Event Log */
+        .terminal-section {
+            margin-top: 1.25rem;
+            background: rgba(4, 7, 13, 0.9);
+            border: 1px solid var(--border-card);
+            border-radius: 14px;
+            padding: 0.85rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .terminal-log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #94a3b8;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-time {
+            color: #64748b;
+        }
+
+        .log-agent {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .log-msg {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Command Header -->
+    <header>
+        <div class="brand">
+            <div class="logo-box">🛡️</div>
+            <div class="brand-text">
+                <h1>DriftShield Autonomous Command Center</h1>
+                <p>Fetch.ai uAgents Alliance • DevSecOps Real-Time Dashboard</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-trigger" onclick="triggerInstantScan()">
+                <span>⚡ Trigger Instant Scan</span>
+            </button>
+            <div class="connection-badge">
+                <div id="statusDot" class="pulse-dot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Metric Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-icon">🛡️</div>
+            <div class="stat-info">
+                <h4>Agent Alliance</h4>
+                <p id="statAgentCount">6 / 6 Online</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🧠</div>
+            <div class="stat-info">
+                <h4>AI Reasoning Engine</h4>
+                <p>Groq LLaMA 3 70B</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-info">
+                <h4>Scan Cycle</h4>
+                <p>Every 300 Seconds</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-info">
+                <h4>Safety Auditor</h4>
+                <p>Safe --dry-run ONLY</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6-Agent Health Grid -->
+    <div class="agents-section">
+        <div class="section-title">
+            <span>🤖 Fetch.ai AgentVerse uAgents Alliance Status</span>
+            <span style="font-size: 0.75rem; color: var(--primary);">Bureau Port 8000</span>
+        </div>
+        <div class="agents-grid">
+            <div class="agent-card">
+                <div class="agent-header">
+                    <span class="agent-name">🕵️‍♂️ Scanner</span>
+                    <span class="agent-port">:8001</span>
+                </div>
+                <div id="badge-ScannerAgent" class="agent-badge badge-offline">Offline</div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <span class="agent-name">🛡️ PolicyGuard</span>
+                    <span class="agent-port">:8002</span>
+                </div>
+                <div id="badge-PolicyGuardAgent" class="agent-badge badge-offline">Offline</div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <span class="agent-name">🔍 DriftSentinel</span>
+                    <span class="agent-port">:8003</span>
+                </div>
+                <div id="badge-DriftSentinelAgent" class="agent-badge badge-offline">Offline</div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <span class="agent-name">🧠 ArchitectAI</span>
+                    <span class="agent-port">:8004</span>
+                </div>
+                <div id="badge-ArchitectAIAgent" class="agent-badge badge-offline">Offline</div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <span class="agent-name">⚡ AutoFix</span>
+                    <span class="agent-port">:8005</span>
+                </div>
+                <div id="badge-AutoFixAgent" class="agent-badge badge-offline">Offline</div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <span class="agent-name">📢 AlertRouter</span>
+                    <span class="agent-port">:8006</span>
+                </div>
+                <div id="badge-AlertRouterAgent" class="agent-badge badge-offline">Offline</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace Main Grid -->
+    <div class="dashboard-main">
+        <nav class="tabs-nav">
+            <button id="tab-architect_ai_agent_report.md" class="tab-btn active" onclick="selectTab('architect_ai_agent_report.md', this)">
+                <span>🧠 Groq AI Remediation</span>
+                <span id="badge-new-architect_ai_agent_report.md" class="tab-new-badge">NEW</span>
+            </button>
+            <button id="tab-autofix_agent_report.md" class="tab-btn" onclick="selectTab('autofix_agent_report.md', this)">
+                <span>⚡ AutoFix Dry-Run Proof</span>
+                <span id="badge-new-autofix_agent_report.md" class="tab-new-badge">NEW</span>
+            </button>
+            <button id="tab-policy_guard_agent_report.md" class="tab-btn" onclick="selectTab('policy_guard_agent_report.md', this)">
+                <span>🛡️ Policy Violations</span>
+                <span id="badge-new-policy_guard_agent_report.md" class="tab-new-badge">NEW</span>
+            </button>
+            <button id="tab-scanner_agent_report.md" class="tab-btn" onclick="selectTab('scanner_agent_report.md', this)">
+                <span>🕵️‍♂️ AWS Scan Telemetry</span>
+                <span id="badge-new-scanner_agent_report.md" class="tab-new-badge">NEW</span>
+            </button>
+            <button id="tab-alert_router_agent_report.md" class="tab-btn" onclick="selectTab('alert_router_agent_report.md', this)">
+                <span>📢 Alert Router Audit</span>
+                <span id="badge-new-alert_router_agent_report.md" class="tab-new-badge">NEW</span>
+            </button>
+            <button id="tab-drift_sentinel_agent_report.md" class="tab-btn" onclick="selectTab('drift_sentinel_agent_report.md', this)">
+                <span>🔍 Anti-Tampering Drift</span>
+                <span id="badge-new-drift_sentinel_agent_report.md" class="tab-new-badge">NEW</span>
+            </button>
+        </nav>
+
+        <main class="viewer-container">
+            <div class="viewer-header">
+                <div id="reportTitle" class="viewer-title">🧠 Groq LLaMA 3 AI Remediation Guide</div>
+                <div id="lastUpdated" class="last-updated">Awaiting live WebSocket push...</div>
+            </div>
+            <div id="markdownBody" class="markdown-body">
+                <p style="color: var(--text-muted);">Select a report tab or wait for live AgentVerse events...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Terminal Event Stream -->
+    <div class="terminal-section">
+        <div class="terminal-header">
+            <span>⚡ Live Inter-Agent Message Stream</span>
+            <span id="terminalTime">ACTIVE</span>
+        </div>
+        <div id="terminalLogList" class="terminal-log-list">
+            <div class="log-entry">
+                <span class="log-time">[SYSTEM]</span>
+                <span class="log-agent">Dashboard:</span>
+                <span class="log-msg">WebSocket session initialized. Listening on port 8080...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const reportStore = {};
+        let activeTabFile = 'architect_ai_agent_report.md';
+
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const markdownBody = document.getElementById('markdownBody');
+        const lastUpdated = document.getElementById('lastUpdated');
+        const terminalLogList = document.getElementById('terminalLogList');
+
+        function connectWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+            const socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                statusDot.classList.add('online');
+                statusText.innerText = 'AgentVerse Bureau Online';
+                appendLog('System', 'Connected to Fetch.ai AgentVerse uAgents Bureau on port 8000.');
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'agent_status') {
+                        updateAgentBadges(data.agents);
+                    } else if (data.type === 'report_update') {
+                        reportStore[data.file] = data.content;
+                        showNewBadge(data.file);
+                        appendLog('AgentVerse', `New Markdown report generated: ${data.file}`);
+                        if (data.file === activeTabFile) {
+                            renderMarkdown(data.content);
+                        }
+                    } else if (data.type === 'event_log') {
+                        appendLog(data.agent || 'Agent', data.text);
+                    }
+                } catch (e) {
+                    console.error('Error parsing WS message', e);
+                }
+            };
+
+            socket.onclose = () => {
+                statusDot.classList.remove('online');
+                statusText.innerText = 'Disconnected — Reconnecting...';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateAgentBadges(agents) {
+            let onlineCount = 0;
+            for (const [name, isOnline] of Object.entries(agents)) {
+                const badge = document.getElementById(`badge-${name}`);
+                if (badge) {
+                    if (isOnline) {
+                        badge.className = 'agent-badge badge-online';
+                        badge.innerText = 'Online';
+                        onlineCount++;
+                    } else {
+                        badge.className = 'agent-badge badge-offline';
+                        badge.innerText = 'Offline';
+                    }
+                }
+            }
+            document.getElementById('statAgentCount').innerText = `${onlineCount} / 6 Online`;
+        }
+
+        function showNewBadge(fileName) {
+            const badge = document.getElementById(`badge-new-${fileName}`);
+            if (badge) {
+                badge.classList.add('visible');
+                setTimeout(() => badge.classList.remove('visible'), 5000);
+            }
+        }
+
+        function selectTab(fileName, btnElement) {
+            activeTabFile = fileName;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (btnElement) btnElement.classList.add('active');
+
+            const titles = {
+                'architect_ai_agent_report.md': '🧠 Groq LLaMA 3 AI Remediation Guide',
+                'autofix_agent_report.md': '⚡ AutoFix Dry-Run Simulation Proof',
+                'policy_guard_agent_report.md': '🛡️ Policy Guard Violation Dossier',
+                'scanner_agent_report.md': '🕵️‍♂️ AWS Scan Telemetry Snapshot',
+                'alert_router_agent_report.md': '📢 DevSecOps Consolidated Audit Summary',
+                'drift_sentinel_agent_report.md': '🔍 Anti-Tampering Baseline Drift Report'
+            };
+            document.getElementById('reportTitle').innerText = titles[fileName] || fileName;
+
+            if (reportStore[fileName]) {
+                renderMarkdown(reportStore[fileName]);
+            } else {
+                markdownBody.innerHTML = `<p style="color: var(--text-muted);">Awaiting live AgentVerse event stream for ${fileName}...</p>`;
+            }
+        }
+
+        function renderMarkdown(content) {
+            markdownBody.innerHTML = marked.parse(content);
+            lastUpdated.innerText = `Last Updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function appendLog(agent, message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-agent">${agent}:</span> <span class="log-msg">${message}</span>`;
+            terminalLogList.appendChild(entry);
+            terminalLogList.scrollTop = terminalLogList.scrollHeight;
+        }
+
+        async function triggerInstantScan() {
+            appendLog('User', 'Clicked ⚡ Trigger Instant Scan button...');
+            try {
+                const res = await fetch('/api/scan', { method: 'POST' });
+                const data = await res.json();
+                appendLog('System', data.message || 'Scan trigger sent!');
+            } catch (e) {
+                appendLog('Error', 'Failed to trigger scan.');
+            }
+        }
+
+        window.onload = () => {
+            connectWebSocket();
+        };
+    </script>
+</body>
+</html>
