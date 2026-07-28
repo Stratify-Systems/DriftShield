@@ -106,6 +106,8 @@ class PolicyViolationAlert(Model):
 
 class DriftDetectedAlert(Model):
     timestamp: str
+    drift_detected: bool = True
+    raw_output: str = ""
     total_drifts: int = 1
     drifts: List[Dict[str, Any]] = []
 
