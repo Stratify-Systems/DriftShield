@@ -36,20 +36,21 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
             if "fix_action" in data:
                 f.write("## Groq LLaMA 3 AI Remediation Guide\n\n")
                 f.write(f"**Target Resources:** `{data.get('target_resource', 'N/A')}`\\\n")
-                f.write(f"**Violated Rules:** `{data.get('rule_id', 'N/A')}`\\\n")
-                f.write(f"**AI Confidence Score:** `{float(data.get('confidence_score', 0))*100:.1f}%`\n\n")
+                f.write(f"**Violated Rules:** `{data.get('rule_id', 'N/A')}`\n\n")
                 f.write("### Step-by-Step Human Instructions\n\n")
                 f.write(f"{data.get('fix_action', '')}\n\n")
                 if "suggested_yaml" in data:
                     f.write("### Suggested Policy-as-Code Rule (YAML)\n```yaml\n")
                     f.write(f"{data.get('suggested_yaml', '')}\n")
                     f.write("```\n\n")
-            elif "dry_run_output" in data:
-                f.write("## AutoFix Dry-Run Simulation Proof\n\n")
-                f.write(f"**Status:** `{data.get('status', 'N/A')}`\\\n")
-                f.write(f"**Signed by uAgent:** `{data.get('signed_by', 'N/A')}`\n\n")
-                f.write("### Simulation Output Preview\n```text\n")
-                f.write(f"{data.get('dry_run_output', '')}\n")
+            elif "dry_run_output" in data or "remediation_guide" in data:
+                f.write("## AutoFix Human Remediation Audit Report\n\n")
+                f.write(f"**Status:** `{data.get('status', 'HUMAN_REMEDIATION_GUIDE_PREPARED')}`\\\n")
+                f.write(f"**Direct AWS Mutations:** `0 (Disabled — Human Manual Fix Only)`\\\n")
+                f.write(f"**Signed by uAgent Auditor:** `{data.get('signed_by', 'N/A')}`\n\n")
+                f.write("### Verified Human Remediation Guide\n```text\n")
+                guide = data.get('remediation_guide') or data.get('dry_run_output') or 'No guide provided.'
+                f.write(f"{guide}\n")
                 f.write("```\n\n")
             elif "raw_output" in data:
                 f.write("## Scanner AWS Telemetry Snapshot\n\n")
@@ -95,7 +96,7 @@ class RemediationProposal(Model):
     rule_id: str
     suggested_yaml: str
     fix_action: str
-    confidence_score: float
+    confidence_score: float = 1.0
 
 class RemediationProof(Model):
     proposal_id: str

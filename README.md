@@ -9,7 +9,7 @@ Powered by a compiled Go scanning engine, **DriftShield** integrates a **6-Agent
 - **Fetch.ai AgentVerse 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `AutoFix`, `AlertRouter`)
 - **Groq LLaMA 3 70B AI Reasoning Engine**: Live integration with `llama-3.3-70b-versatile` synthesizing step-by-step human remediation guides and custom YAML rules
 - **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8080`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
-- **Human-in-the-Loop AI Safety Guardrail**: Zero direct AI AWS mutations; `AutoFixAgent` executes safe `--dry-run` simulations ONLY and signs digital audit proofs
+- **Human Remediation Auditor (AutoFixAgent)**: Zero direct AWS modifications; `AutoFixAgent` formats and verifies step-by-step human remediation guides for DevOps engineers
 - **Clean Markdown State Reporting**: Automatically persists human-readable Markdown reports (`agents_data/*_report.md`) with zero JSON clutter
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
 - **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)

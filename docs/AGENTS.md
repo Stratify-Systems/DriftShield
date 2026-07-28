@@ -26,8 +26,8 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
               │ (RemediationProposal)                 │
               ▼                                       │
   5. AutoFixAgent (Port 8005)                         │
-  Peer-Review Risk (≥ 80% Confidence)                 │
-  Runs Safe --dry-run Simulation ONLY                 │
+  Formats & Verifies Human Remediation Guide         │
+  0 AWS Modifications Executed                        │
               │ (RemediationProof)                    │
               └─────────────┬─────────────────────────┘
                             ▼
@@ -46,7 +46,7 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 | **PolicyGuardAgent** | `agent1qvs9er6w78u606...` | `8002` | Listens for `CloudStateTelemetry`, evaluates rules in `policies/*.yaml` via `./driftshield policy scan`, and emits `PolicyViolationAlert` if non-compliant. |
 | **DriftSentinelAgent** | `agent1qtp3c0576aqfqn...` | `8003` | Listens for `CloudStateTelemetry`, compares live state against S3 Remote State baselines via `./driftshield all drift`, and emits `DriftDetectedAlert` on anti-tampering detection. |
 | **ArchitectAIAgent** | `agent1qghyly2etc8y4x...` | `8004` | Dynamically parses live AWS violations or invokes Groq LLaMA 3 (`llama-3.3-70b-versatile`) to synthesize a **Step-by-Step Human Remediation Guide** and transmits `RemediationProposal`. |
-| **AutoFixAgent** | `agent1qt043wu6g049vl...` | `8005` | Evaluates proposal risk ($\ge 80\%$ confidence threshold), executes safe `./driftshield all fix --dry-run` simulations ONLY (0 live AWS mutations), and signs `RemediationProof`. |
+| **AutoFixAgent** | `agent1qt043wu6g049vl...` | `8005` | Formats and verifies step-by-step human remediation guides for DevOps engineers (0 live AWS modifications executed), signing `RemediationProof`. |
 | **AlertRouterAgent** | `agent1qw9lyclq7dap8a...` | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS). |
 
 ---
