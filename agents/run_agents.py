@@ -44,9 +44,9 @@ def start_dashboard_server():
 
     try:
         subprocess.Popen([sys.executable, server_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("🌐 DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8080\n")
+        print("DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8080\n")
     except Exception as e:
-        print(f"⚠️ Could not start dashboard server: {e}\n")
+        print(f"Could not start dashboard server: {e}\n")
 
 def main():
     cleanup_json_files()
@@ -58,7 +58,7 @@ def main():
  / /_/ / /  / / / /_  ___/ / / / / /  __/ / /_/ /  
 /_____/_/  /_/_/_/ / //____/_/ /_/_/\___/_/\__,_/   
 
- 🛡️  DRIFTSHIELD v2.0.0 - AGENTVERSE MULTI-AGENT ALLIANCE
+ DRIFTSHIELD v2.0.0 - AGENTVERSE MULTI-AGENT ALLIANCE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """)
 
@@ -74,13 +74,13 @@ def main():
     bureau.add(autofix)
     bureau.add(alert_router)
     
-    print("🚀 Starting all 6 Fetch.ai AgentVerse Agents...")
-    print(f"  1. 🕵️‍♂️ ScannerAgent       [{scanner.address}]")
-    print(f"  2. 🛡️ PolicyGuardAgent   [{policy_guard.address}]")
-    print(f"  3. 🔍 DriftSentinelAgent [{drift_sentinel.address}]")
-    print(f"  4. 🧠 ArchitectAIAgent   [{ai_architect.address}]")
-    print(f"  5. ⚡ AutoFixAgent        [{autofix.address}]")
-    print(f"  6. 📢 AlertRouterAgent   [{alert_router.address}]\n")
+    print("Starting all 6 Fetch.ai AgentVerse Agents...")
+    print(f"  1. ScannerAgent       [{scanner.address}]")
+    print(f"  2. PolicyGuardAgent   [{policy_guard.address}]")
+    print(f"  3. DriftSentinelAgent [{drift_sentinel.address}]")
+    print(f"  4. ArchitectAIAgent   [{ai_architect.address}]")
+    print(f"  5. AutoFixAgent        [{autofix.address}]")
+    print(f"  6. AlertRouterAgent   [{alert_router.address}]\n")
 
     bureau.run()
 

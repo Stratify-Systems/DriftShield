@@ -123,7 +123,7 @@ Return a valid JSON object strictly in the following structure (no markdown wrap
                 result_data = json.loads(resp.read().decode("utf-8"))
                 content = result_data["choices"][0]["message"]["content"]
                 parsed = json.loads(content)
-                ctx.logger.info("🧠 [ArchitectAIAgent] ✅ Groq LLaMA 3 API response received successfully!")
+                ctx.logger.info("[ArchitectAIAgent] Groq LLaMA 3 API response received successfully!")
                 
                 score = parsed.get("confidence_score")
                 try:
@@ -139,20 +139,20 @@ Return a valid JSON object strictly in the following structure (no markdown wrap
                     score
                 )
         except Exception as e:
-            ctx.logger.warning(f"🧠 [ArchitectAIAgent] Groq API call failed: {e}. Falling back to local dynamic parser.")
+            ctx.logger.warning(f"[ArchitectAIAgent] Groq API call failed: {e}. Falling back to local dynamic parser.")
 
     return parse_remediation_from_violations(violations_output)
 
 @ai_architect.on_event("startup")
 async def startup_ai(ctx: Context):
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
-    ctx.logger.info("🛡️  DRIFTSHIELD - AGENT 4: ARCHITECT AI AGENT ONLINE")
+    ctx.logger.info("DRIFTSHIELD - AGENT 4: ARCHITECT AI AGENT ONLINE")
     ctx.logger.info(f"   Agent Address: {ai_architect.address}")
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
 
 @ai_architect.on_message(model=PolicyViolationAlert)
 async def handle_violation_alert(ctx: Context, sender: str, msg: PolicyViolationAlert):
-    ctx.logger.info(f"🧠 [ArchitectAIAgent] Received violation alert from PolicyGuardAgent ({sender[:12]}...).")
+    ctx.logger.info(f"[ArchitectAIAgent] Received violation alert from PolicyGuardAgent ({sender[:12]}...).")
     
     raw_output = ""
     if msg.violations and isinstance(msg.violations, list) and "output" in msg.violations[0]:

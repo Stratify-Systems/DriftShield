@@ -119,7 +119,7 @@ async def trigger_scan_handler(request):
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 async def run_scan_task():
-    await broadcast_event("event_log", {"agent": "ScannerAgent", "text": "⚡ Manual scan trigger initiated by DevSecOps Dashboard..."})
+    await broadcast_event("event_log", {"agent": "ScannerAgent", "text": "Manual scan trigger initiated by DevSecOps Dashboard..."})
     subprocess.Popen(["./driftshield", "all"], cwd=PROJECT_ROOT)
 
 async def background_watcher():
@@ -200,5 +200,5 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    print("🌐 Starting DriftShield DevSecOps WebSocket Dashboard on http://127.0.0.1:8080...")
+    print("Starting DriftShield DevSecOps WebSocket Dashboard on http://127.0.0.1:8080...")
     web.run_app(app, host="0.0.0.0", port=8080)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DriftShield — Liquid Glass DevSecOps Command Center</title>
+    <title>DriftShield — DevSecOps Command Center</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,10 +12,10 @@
 </head>
 <body>
 
-    <!-- Liquid Glass Header -->
+    <!-- Header Bar -->
     <header class="glass-card">
         <div class="logo">
-            <div class="logo-icon">🛡️</div>
+            <div class="logo-icon">DS</div>
             <div class="logo-text">
                 <h1>DriftShield Command Center</h1>
                 <p>Fetch.ai uAgents Alliance • Real-Time Security Stream</p>
@@ -23,7 +23,7 @@
         </div>
         <div class="header-actions">
             <button class="submit-btn" onclick="triggerInstantScan()">
-                <span>⚡ Trigger Instant Scan</span>
+                <span>Trigger Instant Scan</span>
             </button>
             <div class="connection-status">
                 <div id="statusDot" class="live-dot"></div>
@@ -35,28 +35,24 @@
     <!-- Top Metric Stats Bar -->
     <div class="stats-bar">
         <div class="stat-card glass-card">
-            <div class="stat-icon">🛡️</div>
             <div class="stat-info">
                 <h4>Agent Alliance</h4>
                 <p id="statAgentCount">6 / 6 Online</p>
             </div>
         </div>
         <div class="stat-card glass-card">
-            <div class="stat-icon">🧠</div>
             <div class="stat-info">
                 <h4>AI Engine</h4>
                 <p>Groq LLaMA 3 70B</p>
             </div>
         </div>
         <div class="stat-card glass-card">
-            <div class="stat-icon">⏱️</div>
             <div class="stat-info">
                 <h4>Scan Interval</h4>
                 <p>300 Seconds</p>
             </div>
         </div>
         <div class="stat-card glass-card">
-            <div class="stat-icon">⚡</div>
             <div class="stat-info">
                 <h4>Safety Auditor</h4>
                 <p>Safe --dry-run</p>
@@ -67,13 +63,13 @@
     <!-- 6-Agent Health Grid -->
     <div class="agents-section">
         <div class="section-title">
-            <span>🤖 Fetch.ai AgentVerse uAgents Status</span>
+            <span>Fetch.ai AgentVerse uAgents Status</span>
             <span style="font-size: 0.75rem; color: var(--accent-purple);">Bureau Port 8000</span>
         </div>
         <div class="agents-grid">
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">🕵️‍♂️ Scanner</span>
+                    <span class="agent-name">Scanner</span>
                     <span class="agent-port">:8001</span>
                 </div>
                 <div id="badge-ScannerAgent" class="agent-badge badge-offline">Offline</div>
@@ -81,7 +77,7 @@
 
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">🛡️ PolicyGuard</span>
+                    <span class="agent-name">PolicyGuard</span>
                     <span class="agent-port">:8002</span>
                 </div>
                 <div id="badge-PolicyGuardAgent" class="agent-badge badge-offline">Offline</div>
@@ -89,7 +85,7 @@
 
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">🔍 DriftSentinel</span>
+                    <span class="agent-name">DriftSentinel</span>
                     <span class="agent-port">:8003</span>
                 </div>
                 <div id="badge-DriftSentinelAgent" class="agent-badge badge-offline">Offline</div>
@@ -97,7 +93,7 @@
 
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">🧠 ArchitectAI</span>
+                    <span class="agent-name">ArchitectAI</span>
                     <span class="agent-port">:8004</span>
                 </div>
                 <div id="badge-ArchitectAIAgent" class="agent-badge badge-offline">Offline</div>
@@ -105,7 +101,7 @@
 
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">⚡ AutoFix</span>
+                    <span class="agent-name">AutoFix</span>
                     <span class="agent-port">:8005</span>
                 </div>
                 <div id="badge-AutoFixAgent" class="agent-badge badge-offline">Offline</div>
@@ -113,7 +109,7 @@
 
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">📢 AlertRouter</span>
+                    <span class="agent-name">AlertRouter</span>
                     <span class="agent-port">:8006</span>
                 </div>
                 <div id="badge-AlertRouterAgent" class="agent-badge badge-offline">Offline</div>
@@ -125,34 +121,34 @@
     <div class="dashboard-main">
         <nav class="tabs-nav glass-card">
             <button id="tab-architect_ai_agent_report.md" class="tab-btn active" onclick="selectTab('architect_ai_agent_report.md', this)">
-                <span>🧠 Groq AI Remediation</span>
+                <span>Groq AI Remediation</span>
                 <span id="badge-new-architect_ai_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
             <button id="tab-autofix_agent_report.md" class="tab-btn" onclick="selectTab('autofix_agent_report.md', this)">
-                <span>⚡ AutoFix Dry-Run Proof</span>
+                <span>AutoFix Dry-Run Proof</span>
                 <span id="badge-new-autofix_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
             <button id="tab-policy_guard_agent_report.md" class="tab-btn" onclick="selectTab('policy_guard_agent_report.md', this)">
-                <span>🛡️ Policy Violations</span>
+                <span>Policy Violations</span>
                 <span id="badge-new-policy_guard_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
             <button id="tab-scanner_agent_report.md" class="tab-btn" onclick="selectTab('scanner_agent_report.md', this)">
-                <span>🕵️‍♂️ AWS Scan Telemetry</span>
+                <span>AWS Scan Telemetry</span>
                 <span id="badge-new-scanner_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
             <button id="tab-alert_router_agent_report.md" class="tab-btn" onclick="selectTab('alert_router_agent_report.md', this)">
-                <span>📢 Alert Router Audit</span>
+                <span>Alert Router Audit</span>
                 <span id="badge-new-alert_router_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
             <button id="tab-drift_sentinel_agent_report.md" class="tab-btn" onclick="selectTab('drift_sentinel_agent_report.md', this)">
-                <span>🔍 Anti-Tampering Drift</span>
+                <span>Anti-Tampering Drift</span>
                 <span id="badge-new-drift_sentinel_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
         </nav>
 
         <main class="viewer-container glass-card">
             <div class="viewer-header">
-                <div id="reportTitle" class="viewer-title">🧠 Groq LLaMA 3 AI Remediation Guide</div>
+                <div id="reportTitle" class="viewer-title">Groq LLaMA 3 AI Remediation Guide</div>
                 <div id="lastUpdated" class="last-updated">Awaiting WebSocket push...</div>
             </div>
             <div id="markdownBody" class="markdown-body">
@@ -164,14 +160,14 @@
     <!-- Terminal Log Bar -->
     <div class="terminal-section glass-card">
         <div class="terminal-header">
-            <span>⚡ Live Inter-Agent Message Stream</span>
+            <span>Live Inter-Agent Message Stream</span>
             <span id="terminalTime">ACTIVE</span>
         </div>
         <div id="terminalLogList" class="terminal-log-list">
             <div class="log-entry">
                 <span class="log-time">[SYSTEM]</span>
                 <span class="log-agent">Dashboard:</span>
-                <span class="log-msg">WebSocket liquid glass UI session initialized on port 8080.</span>
+                <span class="log-msg">WebSocket UI session initialized on port 8080.</span>
             </div>
         </div>
     </div>
@@ -256,12 +252,12 @@
             if (btnElement) btnElement.classList.add('active');
 
             const titles = {
-                'architect_ai_agent_report.md': '🧠 Groq LLaMA 3 AI Remediation Guide',
-                'autofix_agent_report.md': '⚡ AutoFix Dry-Run Simulation Proof',
-                'policy_guard_agent_report.md': '🛡️ Policy Guard Violation Dossier',
-                'scanner_agent_report.md': '🕵️‍♂️ AWS Scan Telemetry Snapshot',
-                'alert_router_agent_report.md': '📢 DevSecOps Consolidated Audit Summary',
-                'drift_sentinel_agent_report.md': '🔍 Anti-Tampering Baseline Drift Report'
+                'architect_ai_agent_report.md': 'Groq LLaMA 3 AI Remediation Guide',
+                'autofix_agent_report.md': 'AutoFix Dry-Run Simulation Proof',
+                'policy_guard_agent_report.md': 'Policy Guard Violation Dossier',
+                'scanner_agent_report.md': 'AWS Scan Telemetry Snapshot',
+                'alert_router_agent_report.md': 'DevSecOps Consolidated Audit Summary',
+                'drift_sentinel_agent_report.md': 'Anti-Tampering Baseline Drift Report'
             };
             document.getElementById('reportTitle').innerText = titles[fileName] || fileName;
 
@@ -287,7 +283,7 @@
         }
 
         async function triggerInstantScan() {
-            appendLog('User', 'Clicked ⚡ Trigger Instant Scan button...');
+            appendLog('User', 'Clicked Trigger Instant Scan button...');
             try {
                 const res = await fetch('/api/scan', { method: 'POST' });
                 const data = await res.json();

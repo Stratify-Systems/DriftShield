@@ -20,7 +20,7 @@ def save_agent_storage(agent_name: str, key: str, data: dict):
             f.write("---\n\n")
             
             if "fix_action" in data:
-                f.write("## 🧠 Groq LLaMA 3 AI Remediation Guide\n\n")
+                f.write("## Groq LLaMA 3 AI Remediation Guide\n\n")
                 f.write(f"**Target Resources:** `{data.get('target_resource', 'N/A')}`\\\n")
                 f.write(f"**Violated Rules:** `{data.get('rule_id', 'N/A')}`\\\n")
                 f.write(f"**AI Confidence Score:** `{float(data.get('confidence_score', 0))*100:.1f}%`\n\n")
@@ -31,19 +31,19 @@ def save_agent_storage(agent_name: str, key: str, data: dict):
                     f.write(f"{data.get('suggested_yaml', '')}\n")
                     f.write("```\n\n")
             elif "dry_run_output" in data:
-                f.write("## ⚡ AutoFix Dry-Run Simulation Proof\n\n")
+                f.write("## AutoFix Dry-Run Simulation Proof\n\n")
                 f.write(f"**Status:** `{data.get('status', 'N/A')}`\\\n")
                 f.write(f"**Signed by uAgent:** `{data.get('signed_by', 'N/A')}`\n\n")
                 f.write("### Simulation Output Preview\n```text\n")
                 f.write(f"{data.get('dry_run_output', '')}\n")
                 f.write("```\n\n")
             elif "raw_output" in data:
-                f.write("## 🕵️‍♂️ Scanner AWS Telemetry Snapshot\n\n")
+                f.write("## Scanner AWS Telemetry Snapshot\n\n")
                 f.write("```text\n")
                 f.write(f"{data.get('raw_output', '')}\n")
                 f.write("```\n\n")
             elif "violations" in data and data.get("violations"):
-                f.write("## 🛡️ Policy Guard Violation Dossier\n\n")
+                f.write("## Policy Guard Violation Dossier\n\n")
                 f.write("```text\n")
                 f.write(f"{data['violations'][0].get('output', '')}\n")
                 f.write("```\n\n")

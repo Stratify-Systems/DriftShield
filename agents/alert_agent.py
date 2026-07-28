@@ -17,13 +17,13 @@ alert_router = Agent(
 @alert_router.on_event("startup")
 async def startup_alert(ctx: Context):
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
-    ctx.logger.info("🛡️  DRIFTSHIELD - AGENT 6: ALERT ROUTER AGENT ONLINE")
-    ctx.logger.info(f"   Agent Address: {alert_router.address}")
+    ctx.logger.info("DRIFTSHIELD - AGENT 6: ALERT ROUTER AGENT ONLINE")
+    ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
     ctx.logger.info("================================━━━━━━━━━━━━━━━━━━━━")
 
 @alert_router.on_message(model=PolicyViolationAlert)
 async def handle_policy_alert(ctx: Context, sender: str, msg: PolicyViolationAlert):
-    ctx.logger.info(f"📢 [AlertRouterAgent] Dispatching Policy Violation dossier from {sender[:12]}... to Slack, SES email, and SNS sinks.")
+    ctx.logger.info(f"[AlertRouterAgent] Dispatching Policy Violation dossier from {sender[:12]}... to Slack, SES email, and SNS sinks.")
     save_agent_storage("alert_router_agent", "latest_policy_alert", msg.dict())
 
 @alert_router.on_message(model=DriftDetectedAlert)
