@@ -9,7 +9,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
 from uagents import Agent, Context
 from models import TelemetryData, BaselineDriftAlert, save_agent_storage
 
-ARCHITECT_AI_ADDRESS = "agent1qghyly2etc8y4x22l0n9y4p6gvx08h5l2dvrv04glwtfgqfa0vtgk78q0g2"
+ARCHITECT_AI_ADDRESS = "agent1qghyly2etc8y4xem7x62jexaw26lp7upte9kgpyktkuuk5jznfz4qk3lu7c"
 ALERT_ROUTER_ADDRESS = "agent1qw9lyclq7dap8atgcx00du6l4nm909mg9dvsx45rqangqfagpvtgk37p5e4"
 
 drift_sentinel = Agent(
