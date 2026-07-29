@@ -80,8 +80,11 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                 f.write(f"{v_output}\n")
                 f.write("```\n\n")
             elif "raw_output" in data:
-                f.write("## Scanner AWS Telemetry Snapshot\n\n")
-                f.write("```text\n")
+                f.write("## Scanner AWS Telemetry & AI Posture Summary\n\n")
+                if "ai_summary" in data and data.get("ai_summary"):
+                    f.write("### Groq AI Executive Cloud Posture Summary\n\n")
+                    f.write(f"{data.get('ai_summary')}\n\n")
+                f.write("### Live AWS Telemetry Snapshot\n```text\n")
                 f.write(f"{data.get('raw_output', '')}\n")
                 f.write("```\n\n")
             else:

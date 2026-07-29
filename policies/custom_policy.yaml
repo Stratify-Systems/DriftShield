@@ -1,9 +1,9 @@
 - id: "POL-S3-001"
-  name: "Default Server-Side Encryption"
+  name: "Enforce S3 Storage Encryption"
   service: "s3"
-  severity: "HIGH"
-  description: "All S3 storage must have default server-side encryption enabled to protect electronic health records."
-  remediation: "Enable default server-side encryption for the S3 bucket."
+  severity: "CRITICAL"
+  description: "All S3 buckets must have server-side encryption enabled to protect ePHI"
+  remediation: "Enable default encryption for the S3 bucket"
   conditions:
     all:
       - field: "storage_encrypted"
@@ -11,49 +11,49 @@
         value: true
 
 - id: "POL-RDS-001"
-  name: "Disallow Public RDS Instances"
+  name: "Prohibit Publicly Accessible RDS Databases"
   service: "rds"
   severity: "CRITICAL"
-  description: "RDS database instances must not be publicly accessible to prevent unauthorized access to electronic health records."
-  remediation: "Modify the RDS instance to be privately accessible."
+  description: "RDS databases must not be publicly accessible to prevent unauthorized access to ePHI"
+  remediation: "Modify the RDS instance to not be publicly accessible"
   conditions:
     all:
       - field: "publicly_accessible"
         operator: "is_false"
         value: true
 
-- id: "POL-IAM-001"
-  name: "Enforce MFA for IAM Users"
-  service: "iam"
-  severity: "HIGH"
-  description: "All console IAM users must have MFA enabled to add an extra layer of security for accessing electronic health records."
-  remediation: "Enable MFA for the IAM user."
-  conditions:
-    all:
-      - field: "mfa_enabled"
-        operator: "is_true"
-        value: true
-
-- id: "POL-VPC-001"
-  name: "Enable VPC Flow Logs"
-  service: "vpc"
-  severity: "MEDIUM"
-  description: "VPC Flow Logs must be enabled to monitor network traffic and detect potential security threats."
-  remediation: "Enable VPC Flow Logs for the VPC."
-  conditions:
-    all:
-      - field: "flow_logs_enabled"
-        operator: "is_true"
-        value: true
-
-- id: "POL-CT-001"
-  name: "Enable CloudTrail Logging"
-  service: "cloudtrail"
+- id: "POL-EC2-001"
+  name: "Disallow Open SSH Port 22"
+  service: "ec2"
   severity: "CRITICAL"
-  description: "CloudTrail logging must be enabled across all regions to track API calls and detect security incidents."
-  remediation: "Enable CloudTrail logging for all regions."
+  description: "Security groups must not allow inbound TCP port 22 from 0.0.0.0/0 to prevent unauthorized SSH access"
+  remediation: "Restrict SSH ingress to bastion CIDR ranges"
+  conditions:
+    none_rule:
+      port: 22
+      protocol: "tcp"
+      source: "0.0.0.0/0"
+
+- id: "POL-EC2-002"
+  name: "Disallow Open RDP Port 3389"
+  service: "ec2"
+  severity: "CRITICAL"
+  description: "Security groups must not allow inbound TCP port 3389 from 0.0.0.0/0 to prevent unauthorized RDP access"
+  remediation: "Restrict RDP ingress to bastion CIDR ranges"
+  conditions:
+    none_rule:
+      port: 3389
+      protocol: "tcp"
+      source: "0.0.0.0/0"
+
+- id: "POL-RDS-002"
+  name: "Mandate RDS Storage Deletion Protection"
+  service: "rds"
+  severity: "HIGH"
+  description: "RDS instances must have deletion protection enabled to prevent accidental deletion of ePHI"
+  remediation: "Enable deletion protection for the RDS instance"
   conditions:
     all:
-      - field: "is_logging"
+      - field: "deletion_protection"
         operator: "is_true"
         value: true
