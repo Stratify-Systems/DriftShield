@@ -48,9 +48,6 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                 f.write("| **Slack Webhook** | `#driftshield-alerts` | `DISPATCHED` |\n")
                 f.write("| **AWS SES Email** | `devsecops@driftshield.internal` | `QUEUED` |\n")
                 f.write("| **AWS SNS Topic** | `arn:aws:sns:ap-south-1:driftshield-alerts` | `NOTIFIED` |\n\n")
-                f.write("### Remediation Guide Summary\n```text\n")
-                f.write(f"{data.get('remediation_preview', '')}\n")
-                f.write("```\n\n")
             elif "drift_output" in data:
                 f.write("## Anti-Tampering Baseline Drift Report\n\n")
                 f.write(f"**Baseline Drift Status:** `{'DRIFT DETECTED' if data.get('drift_detected') else 'ALL STATES MATCH BASELINE'}`\n\n")
