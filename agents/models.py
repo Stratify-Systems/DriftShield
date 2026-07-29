@@ -38,6 +38,9 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                 f.write(f"**Remediation Proposal ID:** `{data.get('proposal_id', 'N/A')}`\\\n")
                 f.write(f"**Target Resource:** `{data.get('target_resource', 'N/A')}`\\\n")
                 f.write(f"**Audit Status:** `{data.get('status', 'DELIVERED')}`\n\n")
+                if "ai_ciso_brief" in data and data.get("ai_ciso_brief"):
+                    f.write("### Groq AI Executive CISO Incident Brief\n\n")
+                    f.write(f"{data.get('ai_ciso_brief')}\n\n")
                 f.write("### Multi-Channel Dispatch Sinks\n")
                 f.write("| Channel | Sink Target | Delivery Status |\n")
                 f.write("| :--- | :--- | :--- |\n")
@@ -51,6 +54,9 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
             elif "drift_output" in data:
                 f.write("## Anti-Tampering Baseline Drift Report\n\n")
                 f.write(f"**Baseline Drift Status:** `{'DRIFT DETECTED' if data.get('drift_detected') else 'ALL STATES MATCH BASELINE'}`\n\n")
+                if "ai_drift_analysis" in data and data.get("ai_drift_analysis"):
+                    f.write("### Groq AI Root Cause & Anti-Tampering Intent Analysis\n\n")
+                    f.write(f"{data.get('ai_drift_analysis')}\n\n")
                 f.write("### DriftShield Baseline Diff Output\n```text\n")
                 f.write(f"{data.get('drift_output', '')}\n")
                 f.write("```\n\n")
@@ -60,6 +66,9 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                 f.write(f"**Simulation Status:** `{data.get('status', 'APPROVED_DRY_RUN_SIMULATION')}`\\\n")
                 f.write(f"**Live AWS Mutations:** `0 (Safe --dry-run Execution Only)`\\\n")
                 f.write(f"**Signed by uAgent Auditor:** `{data.get('signed_by', 'N/A')}`\n\n")
+                if "ai_safety_audit" in data and data.get("ai_safety_audit"):
+                    f.write("### Groq AI Blast Radius & Pre-Flight Safety Audit\n\n")
+                    f.write(f"{data.get('ai_safety_audit')}\n\n")
                 f.write("### `./driftshield all fix --dry-run` Simulation Output\n```text\n")
                 f.write(f"{data.get('dry_run_output', '')}\n")
                 f.write("```\n\n")
@@ -73,10 +82,17 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                     f.write("### Suggested Policy-as-Code Rule (YAML)\n```yaml\n")
                     f.write(f"{data.get('suggested_yaml', '')}\n")
                     f.write("```\n\n")
-            elif "violations" in data and data.get("violations"):
-                f.write("## Policy Guard Violation Dossier\n\n")
-                f.write("```text\n")
-                v_output = data['violations'][0].get('output', '') if isinstance(data['violations'], list) else str(data['violations'])
+            elif "violations" in data or "ai_threat" in data:
+                f.write("## Policy Guard Violation & Threat Dossier\n\n")
+                if "ai_threat" in data and data.get("ai_threat"):
+                    f.write("### Groq AI Threat Vector & Risk Impact Analysis\n\n")
+                    f.write(f"{data.get('ai_threat')}\n\n")
+                f.write("### `./driftshield all policy` Security Scan Output\n```text\n")
+                v_output = ""
+                if "violations" in data and data.get("violations"):
+                    v_output = data['violations'][0].get('output', '') if isinstance(data['violations'], list) else str(data['violations'])
+                elif "raw_output" in data:
+                    v_output = data.get("raw_output")
                 f.write(f"{v_output}\n")
                 f.write("```\n\n")
             elif "raw_output" in data:
