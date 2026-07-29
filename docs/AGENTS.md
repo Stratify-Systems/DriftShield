@@ -26,8 +26,8 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
               │ (RemediationProposal)                 │
               ▼                                       │
   5. RemediationAgent (Port 8005)                     │
-  Formats & Verifies Human Remediation Guide         │
-  0 AWS Modifications Executed                        │
+  Runs ./driftshield all fix --dry-run               │
+  Safe Simulation (0 Live AWS Mutations)              │
               │ (RemediationProof)                    │
               └─────────────┬─────────────────────────┘
                             ▼
@@ -46,8 +46,8 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 | **PolicyGuardAgent** | `8002` | Listens for `CloudStateTelemetry`, evaluates rules in `policies/*.yaml` via `./driftshield policy scan`, and emits `PolicyViolationAlert` if non-compliant. |
 | **DriftSentinelAgent** | `8003` | Listens for `CloudStateTelemetry`, compares live state against S3 Remote State baselines via `./driftshield all drift`, and emits `DriftDetectedAlert` on anti-tampering detection. |
 | **ArchitectAIAgent** | `8004` | Dynamically parses live AWS violations or invokes Groq LLaMA 3 (`llama-3.3-70b-versatile`) to synthesize a **Step-by-Step Human Remediation Guide** and transmits `RemediationProposal`. |
-| **RemediationAgent** | `8005` | Formats and verifies step-by-step human remediation guides for DevOps engineers (0 live AWS modifications executed), signing `RemediationProof`. |
-| **AlertRouterAgent** | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS). |
+| **RemediationAgent** | `8005` | Executes safe `./driftshield all fix --dry-run` simulations (0 live AWS modifications executed), signing `RemediationProof` with output audit logs. |
+| **AlertRouterAgent** | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS) and updates `alert_router_agent_report.md`. |
 
 ---
 
