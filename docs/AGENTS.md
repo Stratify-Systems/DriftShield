@@ -10,14 +10,14 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ```text
                 1. ScannerAgent (Port 8001)
-             [Runs ./driftshield all every 5 mins]
+             [Runs ./driftshield all + Groq AI Summarizer]
                             │
               ┌─────────────┴─────────────┐
               │ (Broadcasts Telemetry)    │
               ▼                           ▼
   2. PolicyGuardAgent (Port 8002)     3. DriftSentinelAgent (Port 8003)
-  Runs ./driftshield policy scan       Runs ./driftshield all drift
-  Evaluates YAML Compliance            Diffs against S3 Remote State
+  Runs ./driftshield all policy        Runs ./driftshield all drift
+  Groq AI Threat Vector Analysis       Groq AI Anti-Tampering Intent Analysis
               │ (PolicyViolationAlert)                │ (DriftDetectedAlert)
               ▼                                       │
   4. ArchitectAIAgent (Port 8004)                     │
@@ -27,12 +27,12 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
               ▼                                       │
   5. RemediationAgent (Port 8005)                     │
   Runs ./driftshield all fix --dry-run               │
-  Safe Simulation (0 Live AWS Mutations)              │
+  Groq AI Pre-Flight Blast Radius Audit               │
               │ (RemediationProof)                    │
               └─────────────┬─────────────────────────┘
                             ▼
                 6. AlertRouterAgent (Port 8006)
-                Dispatches Multi-Channel Notifications
+                Groq AI CISO Incident Brief & Multi-Channel Dispatch
                 (Slack, SES Email, SNS)
 ```
 
@@ -40,14 +40,14 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ## Agent Catalog & Responsibilities
 
-| Agent Name | Port | Primary Responsibility |
-| :--- | :--- | :--- |
-| **ScannerAgent** | `8001` | Periodically executes `./driftshield all` (interval: 300s / 5 mins) to capture live AWS state and broadcasts `CloudStateTelemetry` to Agent 2 and Agent 3. |
-| **PolicyGuardAgent** | `8002` | Listens for `CloudStateTelemetry`, evaluates rules in `policies/*.yaml` via `./driftshield policy scan`, and emits `PolicyViolationAlert` if non-compliant. |
-| **DriftSentinelAgent** | `8003` | Listens for `CloudStateTelemetry`, compares live state against S3 Remote State baselines via `./driftshield all drift`, and emits `DriftDetectedAlert` on anti-tampering detection. |
-| **ArchitectAIAgent** | `8004` | Dynamically parses live AWS violations or invokes Groq LLaMA 3 (`llama-3.3-70b-versatile`) to synthesize a **Step-by-Step Human Remediation Guide** and transmits `RemediationProposal`. |
-| **RemediationAgent** | `8005` | Executes safe `./driftshield all fix --dry-run` simulations (0 live AWS modifications executed), signing `RemediationProof` with output audit logs. |
-| **AlertRouterAgent** | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS) and updates `alert_router_agent_report.md`. |
+| Agent Name | Port | Groq LLaMA 3 AI Integration | Primary Responsibility |
+| :--- | :--- | :--- | :--- |
+| **ScannerAgent** | `8001` | **Groq AI Posture Summarizer** | Executes `./driftshield all` and calls Groq LLaMA 3 70B to synthesize a natural-language executive findings summary. |
+| **PolicyGuardAgent** | `8002` | **Groq AI Threat Vector Analyzer** | Executes `./driftshield all policy` and calls Groq LLaMA 3 70B to evaluate attack vectors, exploit risks, and business severity. |
+| **DriftSentinelAgent** | `8003` | **Groq AI Anti-Tampering Analyzer** | Executes `./driftshield all drift` and calls Groq LLaMA 3 70B to evaluate root causes and out-of-band tampering intent. |
+| **ArchitectAIAgent** | `8004` | **Groq AI Remediation & Policy Designer** | Invokes Groq LLaMA 3 70B (`llama-3.3-70b-versatile`) to synthesize **Step-by-Step Human Remediation Guides** & YAML rules. |
+| **RemediationAgent** | `8005` | **Groq AI Blast Radius Safety Auditor** | Executes safe `./driftshield all fix --dry-run` simulations and calls Groq LLaMA 3 70B to verify pre-flight operational safety. |
+| **AlertRouterAgent** | `8006` | **Groq AI Executive CISO Incident Briefer** | Aggregates all reports, calls Groq LLaMA 3 70B to generate an **Executive CISO Incident Brief**, and dispatches multi-channel alerts. |
 
 ---
 
