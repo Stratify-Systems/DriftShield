@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 
 AGENTS_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(AGENTS_DIR, ".."))
@@ -25,34 +26,38 @@ async def startup_remediation(ctx: Context):
 @remediation_agent.on_message(model=RemediationProposal)
 async def handle_remediation_proposal(ctx: Context, sender: str, msg: RemediationProposal):
     ctx.logger.info(f"[RemediationAgent] Reviewing Remediation Proposal {msg.proposal_id} from ArchitectAIAgent ({sender[:12]}...).")
-    ctx.logger.info("[RemediationAgent] Preparing Step-by-Step Human Remediation Guide (0 AWS API modifications executed)...")
+    ctx.logger.info("[RemediationAgent] Executing safe `./driftshield all fix --dry-run` simulation (0 live AWS mutations)...")
     
-    remediation_guide = (
-        f"PROPOSAL ID: {msg.proposal_id}\n"
-        f"TARGET RESOURCE: {msg.target_resource}\n"
-        f"VIOLATED RULE: {msg.rule_id}\n\n"
-        f"{msg.fix_action}\n\n"
-        f"ENFORCEMENT POLICY (YAML):\n{msg.suggested_yaml}"
-    )
-    
+    try:
+        proc = subprocess.run(
+            ["./driftshield", "all", "fix", "--dry-run"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        dry_run_output = proc.stdout if proc.stdout else proc.stderr
+    except Exception as e:
+        dry_run_output = f"Failed to execute dry-run simulation: {e}"
+        
     proof_data = {
-        "status": "HUMAN_REMEDIATION_GUIDE_PREPARED",
+        "status": "APPROVED_DRY_RUN_SIMULATION",
         "proposal_id": msg.proposal_id,
         "target_resource": msg.target_resource,
-        "remediation_guide": remediation_guide,
+        "dry_run_output": dry_run_output,
         "signed_by": remediation_agent.address
     }
     
     proof = RemediationProof(
         proposal_id=msg.proposal_id,
         target_resource=msg.target_resource,
-        status="HUMAN_REMEDIATION_GUIDE_PREPARED",
-        dry_run_output=remediation_guide,
+        status="APPROVED_DRY_RUN_SIMULATION",
+        dry_run_output=dry_run_output,
         signed_by=remediation_agent.address
     )
     
     save_agent_storage("remediation_agent", proof_data, remediation_agent.address)
-    ctx.logger.info(f"[RemediationAgent] Verified human remediation guide for proposal {msg.proposal_id}. Signed by uAgent auditor {remediation_agent.address[:12]}... Transmitting to AlertRouterAgent...")
+    ctx.logger.info(f"[RemediationAgent] Safe dry-run simulation completed for proposal {msg.proposal_id}. Signed by uAgent auditor {remediation_agent.address[:12]}... Transmitting to AlertRouterAgent...")
     
     await ctx.send(ALERT_ROUTER_ADDRESS, proof)
 
