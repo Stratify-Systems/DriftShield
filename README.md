@@ -6,10 +6,10 @@ Powered by a compiled Go scanning engine, **DriftShield** integrates a **6-Agent
 
 ## Features
 
-- **Fetch.ai AgentVerse 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `AutoFix`, `AlertRouter`)
+- **Fetch.ai AgentVerse 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`)
 - **Groq LLaMA 3 70B AI Reasoning Engine**: Live integration with `llama-3.3-70b-versatile` synthesizing step-by-step human remediation guides and custom YAML rules
 - **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8080`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
-- **Human Remediation Auditor (AutoFixAgent)**: Zero direct AWS modifications; `AutoFixAgent` formats and verifies step-by-step human remediation guides for DevOps engineers
+- **Human Remediation Auditor (RemediationAgent)**: Zero direct AWS modifications; `RemediationAgent` formats and verifies step-by-step human remediation guides for DevOps engineers
 - **Clean Markdown State Reporting**: Automatically persists human-readable Markdown reports (`agents_data/*_report.md`) with zero JSON clutter
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
 - **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)
@@ -39,35 +39,36 @@ DriftShield/
 │   ├── types/types.go           # Shared data structures
 │   ├── config/config.go         # Configuration settings
 │   ├── display/display.go       # Banner and formatting
-│   ├── scanner/
+│   ├── scanner/                 # AWS security scanning layer
 │   │   ├── s3.go                # S3 security scanning
 │   │   ├── ec2.go               # EC2 security group scanning
 │   │   ├── iam.go               # IAM security scanning
 │   │   ├── cloudtrail.go        # CloudTrail security scanning
 │   │   ├── vpc.go               # VPC security scanning
 │   │   └── rds.go               # RDS security scanning
-│   ├── baseline/
+│   ├── baseline/                # Baseline comparison & diff engine
+│   │   ├── common.go            # Baseline comparison utilities
 │   │   ├── s3.go                # S3 baseline management
 │   │   ├── ec2.go               # EC2 baseline management
 │   │   ├── iam.go               # IAM baseline management
 │   │   ├── cloudtrail.go        # CloudTrail baseline management
 │   │   ├── vpc.go               # VPC baseline management
 │   │   └── rds.go               # RDS baseline management
-│   ├── ai/
+│   ├── ai/                      # Groq LLaMA 3 AI engine
 │   │   ├── client.go            # Groq API client
 │   │   ├── conversation.go      # Interactive AI Policy CLI prompts
 │   │   └── policy_generator.go  # AI policy rule generator
-│   ├── policy/
+│   ├── policy/                  # Policy-as-Code engine
 │   │   ├── evaluator.go         # Condition evaluation engine
 │   │   ├── loader.go            # YAML policy parser & defaults
 │   │   └── schema.go            # PolicyRule schema definitions
-│   ├── storage/
+│   ├── storage/                 # Persistence layer
 │   │   └── state.go             # S3 / local state backend
-│   └── alerts/
+│   └── alerts/                  # Alert routing layer
 │       ├── ses.go               # AWS SES email alerts
 │       ├── sns.go               # AWS SNS alerts
 │       └── slack.go             # Slack webhook alerts
-├── baselines/
+├── baselines/                   # JSON baseline snapshots
 │   ├── s3_baseline.json         # S3 baseline snapshot
 │   ├── ec2_baseline.json        # EC2 baseline snapshot
 │   ├── iam_baseline.json        # IAM baseline snapshot
@@ -75,14 +76,8 @@ DriftShield/
 │   ├── vpc_baseline.json        # VPC baseline snapshot
 │   └── rds_baseline.json        # RDS baseline snapshot
 ├── policies/                    # Policy-as-Code YAML rules
-│   ├── s3_policies.yaml
-│   ├── ec2_policies.yaml
-│   ├── iam_policies.yaml
-│   ├── rds_policies.yaml
-│   ├── vpc_policies.yaml
-│   ├── cloudtrail_policies.yaml
-│   └── custom_policy.yaml
-├── tests/                       # Unit test suite
+│   └── custom_policy.yaml       # Custom compliance policy rules
+├── tests/                       # Centralized unit test suite
 │   ├── ai_test.go               # AI generator & schema unit tests
 │   ├── alerts_test.go           # Alert dispatching unit tests
 │   ├── baseline_test.go         # Baseline comparison & remediation unit tests
@@ -112,7 +107,10 @@ DriftShield/
 │   ├── alert_router_agent_report.md
 │   └── drift_sentinel_agent_report.md
 ├── docs/                        # Project & Alliance Documentation
-│   └── AGENTS.md                # Multi-Agent Architecture Specification
+│   ├── AGENTS.md                # Multi-Agent Architecture Specification
+│   ├── ARCHITECTURE.md          # Internal Architecture & Execution Flows
+│   ├── CICD.md                  # Pipeline Integration Guide
+│   └── INTERNALS.md             # In-depth Package Mechanics
 ├── scripts/
 │   └── scheduled_scan.sh        # Cron job script
 ├── logs/
