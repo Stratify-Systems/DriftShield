@@ -24,12 +24,28 @@ async def startup_alert(ctx: Context):
 @alert_router.on_message(model=PolicyViolationAlert)
 async def handle_policy_alert(ctx: Context, sender: str, msg: PolicyViolationAlert):
     ctx.logger.info(f"[AlertRouterAgent] Dispatching Policy Violation dossier from {sender[:12]}... to Slack, SES email, and SNS sinks.")
-    save_agent_storage("alert_router_agent", "latest_policy_alert", msg.dict())
+    summary_data = {
+        "alert_dispatch_summary": True,
+        "alert_type": "POLICY_VIOLATION",
+        "proposal_id": "POL-VIOLATION-001",
+        "target_resource": "AWS Infrastructure",
+        "status": "DISPATCHED",
+        "remediation_preview": msg.violations[0].get("output", "") if (msg.violations and isinstance(msg.violations, list) and "output" in msg.violations[0]) else "Policy violations detected in live AWS infrastructure."
+    }
+    save_agent_storage("alert_router_agent", summary_data, alert_router.address)
 
 @alert_router.on_message(model=DriftDetectedAlert)
 async def handle_drift_alert(ctx: Context, sender: str, msg: DriftDetectedAlert):
     ctx.logger.info(f"📢 [AlertRouterAgent] Dispatching Baseline Drift alert from {sender[:12]}... to Slack, SES email, and SNS sinks.")
-    save_agent_storage("alert_router_agent", "latest_drift_alert", msg.dict())
+    summary_data = {
+        "alert_dispatch_summary": True,
+        "alert_type": "BASELINE_DRIFT",
+        "proposal_id": "DRIFT-ALERT-001",
+        "target_resource": "AWS Infrastructure Baseline",
+        "status": "DISPATCHED",
+        "remediation_preview": msg.raw_output if msg.raw_output else "Baseline drift detected in live AWS infrastructure."
+    }
+    save_agent_storage("alert_router_agent", summary_data, alert_router.address)
 
 @alert_router.on_message(model=RemediationProof)
 async def handle_proof(ctx: Context, sender: str, msg: RemediationProof):
