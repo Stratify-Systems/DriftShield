@@ -34,7 +34,14 @@ async def handle_drift_alert(ctx: Context, sender: str, msg: DriftDetectedAlert)
 @alert_router.on_message(model=RemediationProof)
 async def handle_proof(ctx: Context, sender: str, msg: RemediationProof):
     ctx.logger.info(f"📢 [AlertRouterAgent] Consolidated Remediation Audit Report {msg.proposal_id} ready for DevSecOps dashboard.")
-    save_agent_storage("alert_router_agent", f"report_{msg.proposal_id}", msg.dict())
+    summary_data = {
+        "alert_dispatch_summary": True,
+        "proposal_id": msg.proposal_id,
+        "target_resource": msg.target_resource,
+        "status": msg.status,
+        "remediation_preview": msg.dry_run_output
+    }
+    save_agent_storage("alert_router_agent", summary_data, alert_router.address)
 
 alert_router.include(Protocol("AlertProtocol"))
 

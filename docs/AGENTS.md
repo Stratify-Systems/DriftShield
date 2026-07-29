@@ -25,9 +25,9 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
   Step-by-Step Human Remediation Plan                 │
               │ (RemediationProposal)                 │
               ▼                                       │
-  5. AutoFixAgent (Port 8005)                         │
-  Peer-Review Risk (≥ 80% Confidence)                 │
-  Runs Safe --dry-run Simulation ONLY                 │
+  5. RemediationAgent (Port 8005)                     │
+  Formats & Verifies Human Remediation Guide         │
+  0 AWS Modifications Executed                        │
               │ (RemediationProof)                    │
               └─────────────┬─────────────────────────┘
                             ▼
@@ -40,14 +40,14 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ## Agent Catalog & Responsibilities
 
-| Agent Name | Address / Seed | Port | Primary Responsibility |
-| :--- | :--- | :--- | :--- |
-| **ScannerAgent** | `agent1q2j3sxjx9zd0fl...` | `8001` | Periodically executes `./driftshield all` (interval: 300s / 5 mins) to capture live AWS state and broadcasts `CloudStateTelemetry` to Agent 2 and Agent 3. |
-| **PolicyGuardAgent** | `agent1qvs9er6w78u606...` | `8002` | Listens for `CloudStateTelemetry`, evaluates rules in `policies/*.yaml` via `./driftshield policy scan`, and emits `PolicyViolationAlert` if non-compliant. |
-| **DriftSentinelAgent** | `agent1qtp3c0576aqfqn...` | `8003` | Listens for `CloudStateTelemetry`, compares live state against S3 Remote State baselines via `./driftshield all drift`, and emits `DriftDetectedAlert` on anti-tampering detection. |
-| **ArchitectAIAgent** | `agent1qghyly2etc8y4x...` | `8004` | Dynamically parses live AWS violations or invokes Groq LLaMA 3 (`llama-3.3-70b-versatile`) to synthesize a **Step-by-Step Human Remediation Guide** and transmits `RemediationProposal`. |
-| **AutoFixAgent** | `agent1qt043wu6g049vl...` | `8005` | Evaluates proposal risk ($\ge 80\%$ confidence threshold), executes safe `./driftshield all fix --dry-run` simulations ONLY (0 live AWS mutations), and signs `RemediationProof`. |
-| **AlertRouterAgent** | `agent1qw9lyclq7dap8a...` | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS). |
+| Agent Name | Port | Primary Responsibility |
+| :--- | :--- | :--- |
+| **ScannerAgent** | `8001` | Periodically executes `./driftshield all` (interval: 300s / 5 mins) to capture live AWS state and broadcasts `CloudStateTelemetry` to Agent 2 and Agent 3. |
+| **PolicyGuardAgent** | `8002` | Listens for `CloudStateTelemetry`, evaluates rules in `policies/*.yaml` via `./driftshield policy scan`, and emits `PolicyViolationAlert` if non-compliant. |
+| **DriftSentinelAgent** | `8003` | Listens for `CloudStateTelemetry`, compares live state against S3 Remote State baselines via `./driftshield all drift`, and emits `DriftDetectedAlert` on anti-tampering detection. |
+| **ArchitectAIAgent** | `8004` | Dynamically parses live AWS violations or invokes Groq LLaMA 3 (`llama-3.3-70b-versatile`) to synthesize a **Step-by-Step Human Remediation Guide** and transmits `RemediationProposal`. |
+| **RemediationAgent** | `8005` | Formats and verifies step-by-step human remediation guides for DevOps engineers (0 live AWS modifications executed), signing `RemediationProof`. |
+| **AlertRouterAgent** | `8006` | Aggregates violation, drift, and remediation audit reports to dispatch multi-channel alerts (Slack, AWS SES Email, AWS SNS). |
 
 ---
 
@@ -56,8 +56,8 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 1. **`CloudStateTelemetry`**: Raw JSON telemetry payload captured by `ScannerAgent`.
 2. **`PolicyViolationAlert`**: Non-compliance details emitted by `PolicyGuardAgent`.
 3. **`DriftDetectedAlert`**: Anti-tampering baseline diff details emitted by `DriftSentinelAgent`.
-4. **`RemediationProposal`**: AI-generated step-by-step human guide, YAML rule, and confidence score.
-5. **`RemediationProof`**: Audit proof signed by `AutoFixAgent` following dry-run simulation.
+4. **`RemediationProposal`**: AI-generated step-by-step human guide and YAML rule.
+5. **`RemediationProof`**: Audit proof signed by `RemediationAgent`.
 
 ---
 
@@ -65,7 +65,7 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 * **Zero Direct AI Mutations:** AI models never execute destructive AWS API mutations.
 * **Step-by-Step Remediation Guides:** `ArchitectAIAgent` generates plain English, AWS Console, and CLI instructions for human DevOps engineers.
-* **Dry-Run Auditing:** `AutoFixAgent` only executes `./driftshield all fix --dry-run` to preview structural changes safely.
+* **Human Remediation Verification:** `RemediationAgent` validates step-by-step human remediation guides with zero live AWS modifications.
 
 ---
 
@@ -76,7 +76,7 @@ Agent state reports are persisted inside the **`agents_data/`** directory in **H
 - **`agents_data/policy_guard_agent_report.md`**: Policy violation dossier.
 - **`agents_data/drift_sentinel_agent_report.md`**: Anti-tampering baseline diff report.
 - **`agents_data/architect_ai_agent_report.md`**: Groq LLaMA 3 AI step-by-step human remediation guide.
-- **`agents_data/autofix_agent_report.md`**: Safe `--dry-run` simulation audit proof.
+- **`agents_data/remediation_agent_report.md`**: Human remediation audit report.
 - **`agents_data/alert_router_agent_report.md`**: Consolidated DevSecOps audit summary.
 
 To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_files()` on startup, leaving strictly clean `.md` Markdown reports inside `agents_data/`. All `agents_data/` files and `__pycache__` directories are excluded from git tracking via [.gitignore](file:///home/suryatk/DriftShield/.gitignore).

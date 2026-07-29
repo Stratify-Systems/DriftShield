@@ -19,7 +19,7 @@ AGENT_FILES = {
     "PolicyGuardAgent": "policy_guard_agent_report.md",
     "DriftSentinelAgent": "drift_sentinel_agent_report.md",
     "ArchitectAIAgent": "architect_ai_agent_report.md",
-    "AutoFixAgent": "autofix_agent_report.md",
+    "RemediationAgent": "remediation_agent_report.md",
     "AlertRouterAgent": "alert_router_agent_report.md",
 }
 
@@ -28,7 +28,7 @@ AGENT_PORTS = {
     "PolicyGuardAgent": 8002,
     "DriftSentinelAgent": 8003,
     "ArchitectAIAgent": 8004,
-    "AutoFixAgent": 8005,
+    "RemediationAgent": 8005,
     "AlertRouterAgent": 8006,
 }
 

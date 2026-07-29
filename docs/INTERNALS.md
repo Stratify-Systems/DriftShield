@@ -29,6 +29,8 @@ The entry point is `cmd/driftshield/main.go`, which wires up all Cobra subcomman
 | `internal/alerts` | Send findings via AWS SES email, SNS, and Slack webhook |
 | `internal/display` | Banner printing and port description helpers |
 | `internal/policy` | Declarative Policy-as-Code engine for custom YAML rule evaluation |
+| `agents` | Fetch.ai AgentVerse 6-Agent uAgents Alliance (`run_agents.py`, `scanner_agent.py`, `policy_agent.py`, `drift_agent.py`, `ai_agent.py`, `remediation_agent.py`, `alert_agent.py`) |
+| `agents/dashboard` | Real-Time DevSecOps WebSockets Dashboard (`dashboard_server.py`, `dashboard.html`, `dashboard.css`) |
 | `tests` | Centralized unit test suite covering all internal components |
 
 ---

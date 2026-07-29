@@ -54,8 +54,8 @@
         </div>
         <div class="stat-card glass-card">
             <div class="stat-info">
-                <h4>Safety Auditor</h4>
-                <p>Safe --dry-run</p>
+                <h4>Human Remediation</h4>
+                <p>0 AWS Mutations</p>
             </div>
         </div>
     </div>
@@ -101,10 +101,10 @@
 
             <div class="agent-card glass-card">
                 <div class="agent-header">
-                    <span class="agent-name">AutoFix</span>
+                    <span class="agent-name">Remediation</span>
                     <span class="agent-port">:8005</span>
                 </div>
-                <div id="badge-AutoFixAgent" class="agent-badge badge-offline">Offline</div>
+                <div id="badge-RemediationAgent" class="agent-badge badge-offline">Offline</div>
             </div>
 
             <div class="agent-card glass-card">
@@ -124,9 +124,9 @@
                 <span>Groq AI Remediation</span>
                 <span id="badge-new-architect_ai_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
-            <button id="tab-autofix_agent_report.md" class="tab-btn" onclick="selectTab('autofix_agent_report.md', this)">
-                <span>AutoFix Dry-Run Proof</span>
-                <span id="badge-new-autofix_agent_report.md" class="tab-badge-new">NEW</span>
+            <button id="tab-remediation_agent_report.md" class="tab-btn" onclick="selectTab('remediation_agent_report.md', this)">
+                <span>Remediation Guide</span>
+                <span id="badge-new-remediation_agent_report.md" class="tab-badge-new">NEW</span>
             </button>
             <button id="tab-policy_guard_agent_report.md" class="tab-btn" onclick="selectTab('policy_guard_agent_report.md', this)">
                 <span>Policy Violations</span>
@@ -253,7 +253,7 @@
 
             const titles = {
                 'architect_ai_agent_report.md': 'Groq LLaMA 3 AI Remediation Guide',
-                'autofix_agent_report.md': 'AutoFix Dry-Run Simulation Proof',
+                'remediation_agent_report.md': 'Human Remediation Audit Report',
                 'policy_guard_agent_report.md': 'Policy Guard Violation Dossier',
                 'scanner_agent_report.md': 'AWS Scan Telemetry Snapshot',
                 'alert_router_agent_report.md': 'DevSecOps Consolidated Audit Summary',
