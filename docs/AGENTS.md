@@ -86,7 +86,7 @@ To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_file
 ## Live WebSockets DevSecOps Dashboard (`agents/dashboard/dashboard_server.py`, `dashboard.html`, `dashboard.css`)
 
 * **Directory:** Cleanly isolated inside `agents/dashboard/`.
-* **Host & Port:** Running on `http://localhost:8080`.
+* **Host & Port:** Running on `http://localhost:8085`.
 * **WebSocket Endpoint:** `/ws` providing real-time uAgent status packets (`agent_status`), live Markdown report pushes (`report_update`), and terminal log events (`event_log`).
 * **API Trigger Endpoint:** `POST /api/scan` allowing users to click **"Trigger Instant Scan"** on the UI to initiate an immediate AWS infrastructure scan.
 * **Liquid Glass UI:** Built with Google Fonts (**Outfit** & **Inter**), live status grid for all 6 agents, interactive Markdown tab switcher (`marked.js`), Liquid Glass CSS design system (`dashboard.css`), and a scrolling cyber terminal event ticker.
@@ -99,4 +99,4 @@ To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_file
 ```bash
 python3 agents/run_agents.py
 ```
-This launches all 6 agents on port `8000` alongside the DevSecOps WebSockets Dashboard server at `http://localhost:8080`.
+This launches all 6 agents on port `8000` alongside the DevSecOps WebSockets Dashboard server at `http://localhost:8085`.

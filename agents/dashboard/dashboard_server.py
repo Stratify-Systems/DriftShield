@@ -200,5 +200,5 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    print("Starting DriftShield DevSecOps WebSocket Dashboard on http://127.0.0.1:8080...")
-    web.run_app(app, host="0.0.0.0", port=8080)
+    print("Starting DriftShield DevSecOps WebSocket Dashboard on http://127.0.0.1:8085...")
+    web.run_app(app, host="0.0.0.0", port=8085)

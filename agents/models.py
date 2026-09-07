@@ -44,7 +44,7 @@ def save_agent_storage(agent_name: str, data_or_key: Any, data_or_address: Any =
                 f.write("### Multi-Channel Dispatch Sinks\n")
                 f.write("| Channel | Sink Target | Delivery Status |\n")
                 f.write("| :--- | :--- | :--- |\n")
-                f.write("| **DevSecOps Dashboard** | `WebSocket ws://localhost:8080/ws` | `DELIVERED` |\n")
+                f.write("| **DevSecOps Dashboard** | `WebSocket ws://localhost:8085/ws` | `DELIVERED` |\n")
                 f.write("| **Slack Webhook** | `#driftshield-alerts` | `DISPATCHED` |\n")
                 f.write("| **AWS SES Email** | `devsecops@driftshield.internal` | `QUEUED` |\n")
                 f.write("| **AWS SNS Topic** | `arn:aws:sns:ap-south-1:driftshield-alerts` | `NOTIFIED` |\n\n")

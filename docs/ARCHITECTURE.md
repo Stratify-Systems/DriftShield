@@ -86,7 +86,7 @@ DriftShield follows standard Go project layout principles, isolating logic into 
 
 ### `agents/`
 * **Purpose:** Fetch.ai AgentVerse `uAgents` Autonomous Alliance.
-* **Responsibilities:** Implements a 6-agent autonomous system (`scanner_agent.py`, `policy_agent.py`, `drift_agent.py`, `ai_agent.py`, `remediation_agent.py`, `alert_agent.py`) orchestrated by `run_agents.py` on `uagents.Bureau` port `8000`. Houses the Real-Time DevSecOps WebSockets Dashboard inside `agents/dashboard/` (port `8080`).
+* **Responsibilities:** Implements a 6-agent autonomous system (`scanner_agent.py`, `policy_agent.py`, `drift_agent.py`, `ai_agent.py`, `remediation_agent.py`, `alert_agent.py`) orchestrated by `run_agents.py` on `uagents.Bureau` port `8000`. Houses the Real-Time DevSecOps WebSockets Dashboard inside `agents/dashboard/` (port `8085`).
 
 ### `agents_data/`
 * **Purpose:** State Persistence & Human-Readable Dossier Store.
