@@ -35,7 +35,7 @@ def start_dashboard_server():
     agents_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(agents_dir, "dashboard", "dashboard_server.py")
     
-    # Ensure port 8080 is free by clearing stale dashboard instances
+    # Ensure port 8085 is free by clearing stale dashboard instances
     try:
         subprocess.run(["pkill", "-9", "-f", "dashboard_server.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(0.5)
@@ -44,7 +44,7 @@ def start_dashboard_server():
 
     try:
         subprocess.Popen([sys.executable, server_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8080\n")
+        print("DevSecOps WebSocket Dashboard running at: http://127.0.0.1:8085\n")
     except Exception as e:
         print(f"Could not start dashboard server: {e}\n")
 

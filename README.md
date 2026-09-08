@@ -2,14 +2,14 @@
 
 **DriftShield** is an enterprise-grade, autonomous cloud security and DevSecOps compliance platform that protects multi-region AWS infrastructure (S3, EC2, IAM, CloudTrail, VPC, and RDS) against configuration drift, security misconfigurations, and compliance policy violations.
 
-Powered by a compiled Go scanning engine, **DriftShield** integrates a **6-Agent Autonomous Fetch.ai `uAgents` Alliance**, **Groq LLaMA 3 70B AI reasoning**, **Human-in-the-Loop AI safety guardrails**, and a **Real-Time WebSockets Liquid Glass Command Center Dashboard (`http://localhost:8080`)**. It continuously audits live cloud state against Remote S3 baselines and Policy-as-Code rules, synthesizing step-by-step human remediation guides and safe `--dry-run` simulation audit proofs before routing alerts via SES Email, SNS, and Slack.
+Powered by a compiled Go scanning engine, **DriftShield** integrates a **6-Agent Autonomous Fetch.ai `uAgents` Alliance**, **Groq LLaMA 3 70B AI reasoning**, **Human-in-the-Loop AI safety guardrails**, and a **Real-Time WebSockets Liquid Glass Command Center Dashboard (`http://localhost:8085`)**. It continuously audits live cloud state against Remote S3 baselines and Policy-as-Code rules, synthesizing step-by-step human remediation guides and safe `--dry-run` simulation audit proofs before routing alerts via SES Email, SNS, and Slack.
 
 ## Features
 
-- **Fetch.ai AgentVerse 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`)
-- **Groq LLaMA 3 70B AI Reasoning Engine**: Live integration with `llama-3.3-70b-versatile` synthesizing step-by-step human remediation guides and custom YAML rules
-- **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8080`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
-- **Human Remediation Auditor (RemediationAgent)**: Zero direct AWS modifications; `RemediationAgent` executes safe `./driftshield all fix --dry-run` simulations to generate signed audit proofs for DevOps engineers
+- **100% AI-Powered 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`) with Groq LLaMA 3 70B AI reasoning integrated into every single agent
+- **Groq LLaMA 3 70B AI Reasoning Engine**: Live integration with `llama-3.3-70b-versatile` synthesizing executive summaries, threat vector analyses, anti-tampering intent, pre-flight safety audits, and CISO incident briefs
+- **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8085`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
+- **Human Remediation Auditor (RemediationAgent)**: Zero direct AWS modifications; `RemediationAgent` executes safe `./driftshield all fix --dry-run` simulations with Groq AI pre-flight blast radius audits
 - **Clean Markdown State Reporting**: Automatically persists human-readable Markdown reports (`agents_data/*_report.md`) with zero JSON clutter
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
 - **EC2 Security Scanning**: Detects risky security group configurations (open SSH, RDP, database ports)
@@ -96,7 +96,7 @@ DriftShield/
 │   ├── alert_agent.py           # Agent 6: Alert Router (Port 8006)
 │   ├── models.py                # Inter-Agent Message Schemas & Markdown Reporter
 │   └── dashboard/               # Real-Time DevSecOps Web Dashboard
-│       ├── dashboard_server.py  # Python aiohttp WebSocket Server (Port 8080)
+│       ├── dashboard_server.py  # Python aiohttp WebSocket Server (Port 8085)
 │       ├── dashboard.html       # Real-Time Liquid Glass Web Dashboard UI
 │       └── dashboard.css        # Liquid Glass CSS Design System
 ├── agents_data/                 # Generated Markdown Reports (Git Ignored)
@@ -166,9 +166,9 @@ python3 agents/run_agents.py
 
 This master launcher starts:
 1. All 6 Fetch.ai uAgents on the `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`).
-2. The Real-Time DevSecOps WebSocket Dashboard server at **`http://localhost:8080`**.
+2. The Real-Time DevSecOps WebSocket Dashboard server at **`http://localhost:8085`**.
 
-### Dashboard Features (`http://localhost:8080`)
+### Dashboard Features (`http://localhost:8085`)
 - **Live 6-Agent Health Grid:** Real-time online/offline badges for all uAgents.
 - **Interactive Markdown Tabs:** Renders Groq LLaMA 3 AI remediation guides, dry-run audit proofs, and policy dossiers using `marked.js`.
 - **Live Inter-Agent Event Stream:** Real-time scrolling uAgent message ticker with precise timestamps.
