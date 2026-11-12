@@ -40,14 +40,14 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ## Agent Catalog & Responsibilities
 
-| Agent Name | Port | Groq LLaMA 3 AI Integration | Primary Responsibility |
-| :--- | :--- | :--- | :--- |
-| **ScannerAgent** | `8001` | **Groq AI Posture Summarizer** | Executes `./driftshield all` and calls Groq LLaMA 3 70B to synthesize a natural-language executive findings summary. |
-| **PolicyGuardAgent** | `8002` | **Groq AI Threat Vector Analyzer** | Executes `./driftshield all policy` and calls Groq LLaMA 3 70B to evaluate attack vectors, exploit risks, and business severity. |
-| **DriftSentinelAgent** | `8003` | **Groq AI Anti-Tampering Analyzer** | Executes `./driftshield all drift` and calls Groq LLaMA 3 70B to evaluate root causes and out-of-band tampering intent. |
-| **ArchitectAIAgent** | `8004` | **Groq AI Remediation & Policy Designer** | Invokes Groq LLaMA 3 70B (`llama-3.3-70b-versatile`) to synthesize **Step-by-Step Human Remediation Guides** & YAML rules. |
-| **RemediationAgent** | `8005` | **Groq AI Blast Radius Safety Auditor** | Executes safe `./driftshield all fix --dry-run` simulations and calls Groq LLaMA 3 70B to verify pre-flight operational safety. |
-| **AlertRouterAgent** | `8006` | **Groq AI Executive CISO Incident Briefer** | Aggregates all reports, calls Groq LLaMA 3 70B to generate an **Executive CISO Incident Brief**, and dispatches multi-channel alerts. |
+| Agent Name             | Port   | Groq LLaMA 3 AI Integration                 | Primary Responsibility                                                                                                                |
+| :--------------------- | :----- | :------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------ |
+| **ScannerAgent**       | `8001` | **Groq AI Posture Summarizer**              | Executes `./driftshield all` and calls Groq LLaMA 3 70B to synthesize a natural-language executive findings summary.                  |
+| **PolicyGuardAgent**   | `8002` | **Groq AI Threat Vector Analyzer**          | Executes `./driftshield all policy` and calls Groq LLaMA 3 70B to evaluate attack vectors, exploit risks, and business severity.      |
+| **DriftSentinelAgent** | `8003` | **Groq AI Anti-Tampering Analyzer**         | Executes `./driftshield all drift` and calls Groq LLaMA 3 70B to evaluate root causes and out-of-band tampering intent.               |
+| **ArchitectAIAgent**   | `8004` | **Groq AI Remediation & Policy Designer**   | Invokes Groq LLaMA 3 70B (`llama-3.3-70b-versatile`) to synthesize **Step-by-Step Human Remediation Guides** & YAML rules.            |
+| **RemediationAgent**   | `8005` | **Groq AI Blast Radius Safety Auditor**     | Executes safe `./driftshield all fix --dry-run` simulations and calls Groq LLaMA 3 70B to verify pre-flight operational safety.       |
+| **AlertRouterAgent**   | `8006` | **Groq AI Executive CISO Incident Briefer** | Aggregates all reports, calls Groq LLaMA 3 70B to generate an **Executive CISO Incident Brief**, and dispatches multi-channel alerts. |
 
 ---
 
@@ -63,15 +63,16 @@ DriftShield v2.0.0 integrates a **6-Agent Autonomous Alliance** built on the **F
 
 ## Human-in-the-Loop Safety Principles
 
-* **Zero Direct AI Mutations:** AI models never execute destructive AWS API mutations.
-* **Step-by-Step Remediation Guides:** `ArchitectAIAgent` generates plain English, AWS Console, and CLI instructions for human DevOps engineers.
-* **Human Remediation Verification:** `RemediationAgent` validates step-by-step human remediation guides with zero live AWS modifications.
+- **Zero Direct AI Mutations:** AI models never execute destructive AWS API mutations.
+- **Step-by-Step Remediation Guides:** `ArchitectAIAgent` generates plain English, AWS Console, and CLI instructions for human DevOps engineers.
+- **Human Remediation Verification:** `RemediationAgent` validates step-by-step human remediation guides with zero live AWS modifications.
 
 ---
 
 ## State Persistence & Human-Readable Markdown Reports
 
 Agent state reports are persisted inside the **`agents_data/`** directory in **Human-Readable Markdown format (`*_report.md`)**:
+
 - **`agents_data/scanner_agent_report.md`**: Live AWS telemetry snapshot.
 - **`agents_data/policy_guard_agent_report.md`**: Policy violation dossier.
 - **`agents_data/drift_sentinel_agent_report.md`**: Anti-tampering baseline diff report.
@@ -85,18 +86,20 @@ To eliminate JSON clutter, `run_agents.py` automatically runs `cleanup_json_file
 
 ## Live WebSockets DevSecOps Dashboard (`agents/dashboard/dashboard_server.py`, `dashboard.html`, `dashboard.css`)
 
-* **Directory:** Cleanly isolated inside `agents/dashboard/`.
-* **Host & Port:** Running on `http://localhost:8085`.
-* **WebSocket Endpoint:** `/ws` providing real-time uAgent status packets (`agent_status`), live Markdown report pushes (`report_update`), and terminal log events (`event_log`).
-* **API Trigger Endpoint:** `POST /api/scan` allowing users to click **"Trigger Instant Scan"** on the UI to initiate an immediate AWS infrastructure scan.
-* **Liquid Glass UI:** Built with Google Fonts (**Outfit** & **Inter**), live status grid for all 6 agents, interactive Markdown tab switcher (`marked.js`), Liquid Glass CSS design system (`dashboard.css`), and a scrolling cyber terminal event ticker.
+- **Directory:** Cleanly isolated inside `agents/dashboard/`.
+- **Host & Port:** Running on `http://localhost:8080`.
+- **WebSocket Endpoint:** `/ws` providing real-time uAgent status packets (`agent_status`), live Markdown report pushes (`report_update`), and terminal log events (`event_log`).
+- **API Trigger Endpoint:** `POST /api/scan` allowing users to click **"Trigger Instant Scan"** on the UI to initiate an immediate AWS infrastructure scan.
+- **Liquid Glass UI:** Built with Google Fonts (**Outfit** & **Inter**), live status grid for all 6 agents, interactive Markdown tab switcher (`marked.js`), Liquid Glass CSS design system (`dashboard.css`), and a scrolling cyber terminal event ticker.
 
 ---
 
 ## Execution Guide
 
 ### Launching All 6 Agents on the Bureau (Recommended)
+
 ```bash
 python3 agents/run_agents.py
 ```
-This launches all 6 agents on port `8000` alongside the DevSecOps WebSockets Dashboard server at `http://localhost:8085`.
+
+This launches all 6 agents on port `8000` alongside the DevSecOps WebSockets Dashboard server at `http://localhost:8080`.

@@ -2,13 +2,13 @@
 
 **DriftShield** is an enterprise-grade, autonomous cloud security and DevSecOps compliance platform that protects multi-region AWS infrastructure (S3, EC2, IAM, CloudTrail, VPC, and RDS) against configuration drift, security misconfigurations, and compliance policy violations.
 
-Powered by a compiled Go scanning engine, **DriftShield** integrates a **6-Agent Autonomous Fetch.ai `uAgents` Alliance**, **Groq LLaMA 3 70B AI reasoning**, **Human-in-the-Loop AI safety guardrails**, and a **Real-Time WebSockets Liquid Glass Command Center Dashboard (`http://localhost:8085`)**. It continuously audits live cloud state against Remote S3 baselines and Policy-as-Code rules, synthesizing step-by-step human remediation guides and safe `--dry-run` simulation audit proofs before routing alerts via SES Email, SNS, and Slack.
+Powered by a compiled Go scanning engine, **DriftShield** integrates a **6-Agent Autonomous Fetch.ai `uAgents` Alliance**, **Groq LLaMA 3 70B AI reasoning**, **Human-in-the-Loop AI safety guardrails**, and a **Real-Time WebSockets Liquid Glass Command Center Dashboard (`http://localhost:8080`)**. It continuously audits live cloud state against Remote S3 baselines and Policy-as-Code rules, synthesizing step-by-step human remediation guides and safe `--dry-run` simulation audit proofs before routing alerts via SES Email, SNS, and Slack.
 
 ## Features
 
 - **100% AI-Powered 6-Agent Alliance**: Autonomous multi-agent alliance running on `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`) with Groq LLaMA 3 70B AI reasoning integrated into every single agent
 - **Groq LLaMA 3 70B AI Reasoning Engine**: Live integration with `llama-3.3-70b-versatile` synthesizing executive summaries, threat vector analyses, anti-tampering intent, pre-flight safety audits, and CISO incident briefs
-- **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8085`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
+- **Real-Time WebSockets DevSecOps Dashboard**: Interactive dark-mode dashboard (`http://localhost:8080`) featuring live agent health grid, uAgent event ticker stream, and instant scan trigger API
 - **Human Remediation Auditor (RemediationAgent)**: Zero direct AWS modifications; `RemediationAgent` executes safe `./driftshield all fix --dry-run` simulations with Groq AI pre-flight blast radius audits
 - **Clean Markdown State Reporting**: Automatically persists human-readable Markdown reports (`agents_data/*_report.md`) with zero JSON clutter
 - **S3 Security Scanning**: Detects S3 buckets with public access risks
@@ -96,7 +96,7 @@ DriftShield/
 │   ├── alert_agent.py           # Agent 6: Alert Router (Port 8006)
 │   ├── models.py                # Inter-Agent Message Schemas & Markdown Reporter
 │   └── dashboard/               # Real-Time DevSecOps Web Dashboard
-│       ├── dashboard_server.py  # Python aiohttp WebSocket Server (Port 8085)
+│       ├── dashboard_server.py  # Python aiohttp WebSocket Server (Port 8080)
 │       ├── dashboard.html       # Real-Time Liquid Glass Web Dashboard UI
 │       └── dashboard.css        # Liquid Glass CSS Design System
 ├── agents_data/                 # Generated Markdown Reports (Git Ignored)
@@ -125,12 +125,14 @@ DriftShield/
 ### From Source
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/SuryaTK2007/DriftShield.git
    cd DriftShield
    ```
 
 2. Build the binary:
+
    ```bash
    make build
    ```
@@ -165,25 +167,28 @@ python3 agents/run_agents.py
 ```
 
 This master launcher starts:
-1. All 6 Fetch.ai uAgents on the `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`).
-2. The Real-Time DevSecOps WebSocket Dashboard server at **`http://localhost:8085`**.
 
-### Dashboard Features (`http://localhost:8085`)
+1. All 6 Fetch.ai uAgents on the `uagents.Bureau` (`Scanner`, `PolicyGuard`, `DriftSentinel`, `ArchitectAI`, `Remediation`, `AlertRouter`).
+2. The Real-Time DevSecOps WebSocket Dashboard server at **`http://localhost:8080`**.
+
+### Dashboard Features (`http://localhost:8080`)
+
 - **Live 6-Agent Health Grid:** Real-time online/offline badges for all uAgents.
 - **Interactive Markdown Tabs:** Renders Groq LLaMA 3 AI remediation guides, dry-run audit proofs, and policy dossiers using `marked.js`.
 - **Live Inter-Agent Event Stream:** Real-time scrolling uAgent message ticker with precise timestamps.
 - **Trigger Instant Scan Button:** Interactive UI button calling `/api/scan` to launch an immediate AWS infrastructure scan.
 
-
 ## Remote State Backend (S3)
 
-DriftShield natively supports centralized state storage in AWS S3 for CI/CD and GitOps workflows. 
+DriftShield natively supports centralized state storage in AWS S3 for CI/CD and GitOps workflows.
 
 By default, DriftShield saves baseline snapshots as local `.json` files in the `baselines/` directory. However, if you configure the following in your `.env` file:
+
 ```env
 DRIFTSHIELD_STATE_BUCKET=my-security-bucket
 DRIFTSHIELD_STATE_BUCKET_REGION=us-east-1
 ```
+
 All subcommands (`drift`, `baseline`, and `fix`) will bypass the local filesystem and read/write the JSON baselines directly from the specified S3 bucket. This ensures an immutable, auditable source of truth.
 
 ### Recommended Bucket Policy
@@ -192,55 +197,48 @@ To secure your remote state bucket, we recommend attaching a bucket policy that 
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AllowDriftShieldUserFullAccess",
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::<ACCOUNT_ID>:user/drift-shield-user"
-            },
-            "Action": [
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:ListBucket"
-            ],
-            "Resource": [
-                "arn:aws:s3:::<BUCKET_NAME>",
-                "arn:aws:s3:::<BUCKET_NAME>/*"
-            ]
-        },
-        {
-            "Sid": "AllowRootAccountReadAccess",
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::<ACCOUNT_ID>:root"
-            },
-            "Action": [
-                "s3:GetObject",
-                "s3:ListBucket"
-            ],
-            "Resource": [
-                "arn:aws:s3:::<BUCKET_NAME>",
-                "arn:aws:s3:::<BUCKET_NAME>/*"
-            ]
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowDriftShieldUserFullAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<ACCOUNT_ID>:user/drift-shield-user"
+      },
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::<BUCKET_NAME>", "arn:aws:s3:::<BUCKET_NAME>/*"]
+    },
+    {
+      "Sid": "AllowRootAccountReadAccess",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::<ACCOUNT_ID>:root"
+      },
+      "Action": ["s3:GetObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::<BUCKET_NAME>", "arn:aws:s3:::<BUCKET_NAME>/*"]
+    }
+  ]
 }
 ```
 
 ## Usage
 
 ### Global Flags
+
 DriftShield supports several global flags that can be applied to its commands:
+
 - `-r, --region string` : Specify the AWS region (e.g., `us-east-1`). If not provided, it falls back to `.env` or standard AWS config.
 - `-d, --dry-run` : Simulate the `fix` command without actually making any destructive changes to your AWS environment. Highly recommended for CI/CD pipelines!
+
 ### CI/CD Integration
+
 DriftShield is built for automated security pipelines.
+
 - **Exit Codes:** If DriftShield detects any misconfigurations during a `scan` or drifts during a `drift` check, it automatically terminates with an `Exit Code 1`. This safely fails your CI/CD pipeline, blocking insecure deployments.
-- **Dry-Run Remediation:** Running `driftshield all fix --dry-run` will output exactly what AWS API calls *would* have been made, allowing you to preview remediation in a safe, non-destructive way in CI.
+- **Dry-Run Remediation:** Running `driftshield all fix --dry-run` will output exactly what AWS API calls _would_ have been made, allowing you to preview remediation in a safe, non-destructive way in CI.
 
 ### S3 Commands
+
 ```bash
 driftshield s3                    # Run S3 security scan
 driftshield s3 baseline           # Create S3 baseline
@@ -249,6 +247,7 @@ driftshield s3 fix                # Fix drifted S3 configs
 ```
 
 ### EC2 Commands
+
 ```bash
 driftshield ec2                   # Run EC2 security group scan
 driftshield ec2 baseline          # Create EC2 baseline
@@ -258,6 +257,7 @@ driftshield ec2 -r us-east-1      # Scan specific region
 ```
 
 ### IAM Commands
+
 ```bash
 driftshield iam                   # Run IAM security scan
 driftshield iam baseline          # Create IAM baseline
@@ -267,6 +267,7 @@ driftshield iam -r us-east-1      # Run with specific region
 ```
 
 ### CloudTrail Commands
+
 ```bash
 driftshield cloudtrail            # Run CloudTrail security scan
 driftshield cloudtrail baseline   # Create CloudTrail baseline
@@ -276,6 +277,7 @@ driftshield cloudtrail -r us-east-1  # Scan specific region
 ```
 
 ### VPC Commands
+
 ```bash
 driftshield vpc                   # Run VPC security scan
 driftshield vpc baseline          # Create VPC baseline
@@ -285,6 +287,7 @@ driftshield vpc -r us-east-1      # Scan specific region
 ```
 
 ### RDS Commands
+
 ```bash
 driftshield rds                   # Run RDS security scan
 driftshield rds baseline          # Create RDS baseline
@@ -294,6 +297,7 @@ driftshield rds -r us-east-1      # Scan specific region
 ```
 
 ### Policy-as-Code Commands
+
 ```bash
 driftshield policy scan           # Evaluate live AWS resources against YAML policy rules
 driftshield policy list           # List all loaded policy rules and their severities
@@ -302,11 +306,13 @@ driftshield policy scan -p custom # Use custom rules directory
 ```
 
 ### AI Commands
+
 ```bash
 driftshield ai policy             # Generate custom YAML policy rules from security requirements using AI
 ```
 
 ### Other Commands
+
 ```bash
 driftshield all                   # Run S3, EC2, IAM, CloudTrail, VPC, and RDS scans
 driftshield all baseline          # Create baselines for all 6 services
@@ -321,6 +327,7 @@ driftshield completion bash       # Generate bash completion script
 ### Running Without Installing
 
 You can also run directly with `go run`:
+
 ```bash
 go run ./cmd/driftshield s3
 go run ./cmd/driftshield ec2 drift
@@ -333,11 +340,11 @@ go run ./cmd/driftshield all
 
 ### Global Flags
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--region` | `-r` | Override AWS region for the scan (e.g., `us-east-1`). Falls back to `AWSRegion` in `config.go` if not set. |
-| `--help` | `-h` | Show help |
-| `--version` | `-v` | Show version |
+| Flag        | Short | Description                                                                                                |
+| ----------- | ----- | ---------------------------------------------------------------------------------------------------------- |
+| `--region`  | `-r`  | Override AWS region for the scan (e.g., `us-east-1`). Falls back to `AWSRegion` in `config.go` if not set. |
+| `--help`    | `-h`  | Show help                                                                                                  |
+| `--version` | `-v`  | Show version                                                                                               |
 
 The `--region` flag is a persistent flag — it applies to all subcommands. Every AWS client (S3, EC2, IAM, CloudTrail, VPC, RDS) respects it via `config.GetRegion()`, which returns the flag value when set and the configured default otherwise.
 
@@ -365,84 +372,86 @@ Instead of manually writing YAML rules, the AI acts as a virtual Cloud Security 
 
 The IAM scanner detects these issues:
 
-| Check | Severity |
-|-------|----------|
-| Root account MFA disabled | CRITICAL |
-| Root account has active access keys | CRITICAL |
-| IAM user with console access but no MFA | HIGH |
-| No account password policy set | HIGH |
-| User has `AdministratorAccess` policy attached | HIGH |
-| User has inline policy with wildcard `Action: *` | HIGH |
-| Minimum password length below 14 characters | MEDIUM |
-| Password complexity not fully enforced | MEDIUM |
-| Passwords never expire | MEDIUM |
-| Access key unused for 90+ days | MEDIUM |
-| Access key that was never used | MEDIUM |
-| Password reuse prevention not configured | LOW |
+| Check                                            | Severity |
+| ------------------------------------------------ | -------- |
+| Root account MFA disabled                        | CRITICAL |
+| Root account has active access keys              | CRITICAL |
+| IAM user with console access but no MFA          | HIGH     |
+| No account password policy set                   | HIGH     |
+| User has `AdministratorAccess` policy attached   | HIGH     |
+| User has inline policy with wildcard `Action: *` | HIGH     |
+| Minimum password length below 14 characters      | MEDIUM   |
+| Password complexity not fully enforced           | MEDIUM   |
+| Passwords never expire                           | MEDIUM   |
+| Access key unused for 90+ days                   | MEDIUM   |
+| Access key that was never used                   | MEDIUM   |
+| Password reuse prevention not configured         | LOW      |
 
 ## CloudTrail Security Checks
 
 The CloudTrail scanner detects these issues:
 
-| Check | Severity |
-|-------|----------|
-| No trails configured | CRITICAL |
-| Trail exists but logging is disabled | CRITICAL |
-| No multi-region trail configured | HIGH |
-| Log file validation disabled | MEDIUM |
-| Only write events logged (read events missed) | LOW |
+| Check                                         | Severity |
+| --------------------------------------------- | -------- |
+| No trails configured                          | CRITICAL |
+| Trail exists but logging is disabled          | CRITICAL |
+| No multi-region trail configured              | HIGH     |
+| Log file validation disabled                  | MEDIUM   |
+| Only write events logged (read events missed) | LOW      |
 
 ## VPC Security Checks
 
 The VPC scanner detects these issues:
 
-| Check | Severity |
-|-------|----------|
-| Default VPC is in use | MEDIUM |
-| VPC has no flow logs enabled | HIGH |
-| NACL allows all inbound traffic from internet | HIGH |
-| Subnet auto-assigns public IPs on launch | MEDIUM |
+| Check                                         | Severity |
+| --------------------------------------------- | -------- |
+| Default VPC is in use                         | MEDIUM   |
+| VPC has no flow logs enabled                  | HIGH     |
+| NACL allows all inbound traffic from internet | HIGH     |
+| Subnet auto-assigns public IPs on launch      | MEDIUM   |
 
 ## RDS Security Checks
 
 The RDS scanner detects these issues:
 
-| Check | Severity |
-|-------|----------|
-| Instance is publicly accessible | HIGH |
-| Storage is not encrypted | HIGH |
-| Deletion protection is disabled | MEDIUM |
-| Default master username in use (`admin`, `root`, `master`, `postgres`, etc.) | MEDIUM |
+| Check                                                                        | Severity |
+| ---------------------------------------------------------------------------- | -------- |
+| Instance is publicly accessible                                              | HIGH     |
+| Storage is not encrypted                                                     | HIGH     |
+| Deletion protection is disabled                                              | MEDIUM   |
+| Default master username in use (`admin`, `root`, `master`, `postgres`, etc.) | MEDIUM   |
 
 ## EC2 Security Checks
 
 The EC2 scanner detects these risky configurations when open to `0.0.0.0/0`:
 
-| Port | Service | Severity |
-|------|---------|----------|
-| 22 | SSH | CRITICAL |
-| 3389 | RDP | CRITICAL |
-| 23 | Telnet | HIGH |
-| 21 | FTP | HIGH |
-| 3306 | MySQL | HIGH |
-| 5432 | PostgreSQL | HIGH |
-| 1433 | MSSQL | HIGH |
-| 27017 | MongoDB | HIGH |
-| 6379 | Redis | HIGH |
-| 9200 | Elasticsearch | HIGH |
-| All ports (0-65535) | Any | CRITICAL |
-| All traffic | Any | CRITICAL |
+| Port                | Service       | Severity |
+| ------------------- | ------------- | -------- |
+| 22                  | SSH           | CRITICAL |
+| 3389                | RDP           | CRITICAL |
+| 23                  | Telnet        | HIGH     |
+| 21                  | FTP           | HIGH     |
+| 3306                | MySQL         | HIGH     |
+| 5432                | PostgreSQL    | HIGH     |
+| 1433                | MSSQL         | HIGH     |
+| 27017               | MongoDB       | HIGH     |
+| 6379                | Redis         | HIGH     |
+| 9200                | Elasticsearch | HIGH     |
+| All ports (0-65535) | Any           | CRITICAL |
+| All traffic         | Any           | CRITICAL |
 
 ## Scheduled Scanning (Cron)
 
 Set up automated scans to run every hour:
 
 ### 1. Build the binary
+
 ```bash
 make build
 ```
 
 ### 2. Test the script manually
+
 ```bash
 ./scripts/scheduled_scan.sh all        # Run all scans + drift detection
 ./scripts/scheduled_scan.sh s3         # Run S3 scan + drift
@@ -450,6 +459,7 @@ make build
 ```
 
 ### 3. Add to crontab
+
 ```bash
 crontab -e
 ```
@@ -459,21 +469,25 @@ crontab -e
 Replace `/path/to/DriftShield` with your actual installation path.
 
 **Run all scans and drift detection every hour:**
+
 ```
 0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh all >> /path/to/DriftShield/logs/cron.log 2>&1
 ```
 
 **Run S3 scan and drift detection every hour:**
+
 ```
 0 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh s3 >> /path/to/DriftShield/logs/cron.log 2>&1
 ```
 
 **Run EC2 scan and drift detection every 30 minutes:**
+
 ```
 */30 * * * * /path/to/DriftShield/scripts/scheduled_scan.sh ec2 >> /path/to/DriftShield/logs/cron.log 2>&1
 ```
 
 ### 5. View logs
+
 ```bash
 tail -f logs/cron.log
 ```
@@ -482,84 +496,76 @@ tail -f logs/cron.log
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:ListAllMyBuckets",
-                "s3:GetBucketPublicAccessBlock",
-                "s3:GetBucketAcl",
-                "s3:GetBucketPolicy",
-                "s3:GetBucketPolicyStatus",
-                "s3:GetBucketVersioning",
-                "s3:GetEncryptionConfiguration",
-                "s3:PutBucketPublicAccessBlock",
-                "s3:PutBucketVersioning",
-                "s3:PutBucketEncryption",
-                "s3:DeleteBucketEncryption"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ec2:DescribeSecurityGroups",
-                "ec2:DescribeSecurityGroupRules",
-                "ec2:RevokeSecurityGroupIngress",
-                "ec2:DescribeVpcs",
-                "ec2:DescribeFlowLogs",
-                "ec2:DescribeNetworkAcls",
-                "ec2:DescribeSubnets",
-                "ec2:ModifySubnetAttribute"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "iam:GetAccountSummary",
-                "iam:ListUsers",
-                "iam:GetLoginProfile",
-                "iam:ListMFADevices",
-                "iam:ListAttachedUserPolicies",
-                "iam:ListUserPolicies",
-                "iam:GetUserPolicy",
-                "iam:ListAccessKeys",
-                "iam:GetAccessKeyLastUsed",
-                "iam:GenerateCredentialReport",
-                "iam:GetCredentialReport",
-                "iam:GetAccountPasswordPolicy",
-                "cloudtrail:DescribeTrails",
-                "cloudtrail:GetTrailStatus",
-                "cloudtrail:GetEventSelectors"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "rds:DescribeDBInstances",
-                "rds:ModifyDBInstance"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "sns:Publish"
-            ],
-            "Resource": "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-alerts"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "ses:SendEmail",
-                "ses:SendRawEmail"
-            ],
-            "Resource": "*"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListAllMyBuckets",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketAcl",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPolicyStatus",
+        "s3:GetBucketVersioning",
+        "s3:GetEncryptionConfiguration",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketVersioning",
+        "s3:PutBucketEncryption",
+        "s3:DeleteBucketEncryption"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSecurityGroupRules",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeFlowLogs",
+        "ec2:DescribeNetworkAcls",
+        "ec2:DescribeSubnets",
+        "ec2:ModifySubnetAttribute"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetAccountSummary",
+        "iam:ListUsers",
+        "iam:GetLoginProfile",
+        "iam:ListMFADevices",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListUserPolicies",
+        "iam:GetUserPolicy",
+        "iam:ListAccessKeys",
+        "iam:GetAccessKeyLastUsed",
+        "iam:GenerateCredentialReport",
+        "iam:GetCredentialReport",
+        "iam:GetAccountPasswordPolicy",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetTrailStatus",
+        "cloudtrail:GetEventSelectors"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["rds:DescribeDBInstances", "rds:ModifyDBInstance"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["sns:Publish"],
+      "Resource": "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-alerts"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ses:SendEmail", "ses:SendRawEmail"],
+      "Resource": "*"
+    }
+  ]
 }
 ```
 
@@ -576,11 +582,13 @@ Edit `internal/config/config.go` to configure:
 ## SNS Alerts Setup
 
 ### 1. Create the SNS topic
+
 ```bash
 aws sns create-topic --name driftshield-alerts --region ap-south-1
 ```
 
 ### 2. Subscribe your email
+
 ```bash
 aws sns subscribe \
   --topic-arn arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-alerts \
@@ -588,10 +596,13 @@ aws sns subscribe \
   --notification-endpoint your@email.com \
   --region ap-south-1
 ```
+
 Check your inbox and click the confirmation link.
 
 ### 3. Enable SNS in config
+
 Edit `internal/config/config.go`:
+
 ```go
 var SNSConfig = SNSSettings{
     Enabled:         true,
@@ -602,7 +613,9 @@ var SNSConfig = SNSSettings{
 ```
 
 ### 4. Optional — per-service topics
+
 Route specific services to dedicated topics:
+
 ```go
 ServiceTopics: map[string]string{
     "rds": "arn:aws:sns:ap-south-1:YOUR_ACCOUNT_ID:driftshield-rds-alerts",
@@ -611,15 +624,17 @@ ServiceTopics: map[string]string{
 ```
 
 ### 5. Optional — SNS filter policies
+
 Every SNS message includes these attributes for subscriber-side filtering:
 
-| Attribute | Values |
-|-----------|--------|
-| `service` | `s3`, `ec2`, `iam`, `cloudtrail`, `vpc`, `rds` |
-| `alertType` | `SCAN`, `DRIFT` |
-| `severity` | `CRITICAL`, `HIGH`, `MEDIUM` |
+| Attribute   | Values                                         |
+| ----------- | ---------------------------------------------- |
+| `service`   | `s3`, `ec2`, `iam`, `cloudtrail`, `vpc`, `rds` |
+| `alertType` | `SCAN`, `DRIFT`                                |
+| `severity`  | `CRITICAL`, `HIGH`, `MEDIUM`                   |
 
 Example filter policy (only CRITICAL scan alerts):
+
 ```json
 {
   "alertType": ["SCAN"],
